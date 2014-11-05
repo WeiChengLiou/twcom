@@ -4,6 +4,8 @@
 import re
 from pymongo import MongoClient
 import logging
+import yaml
+from pdb import set_trace
 logger = logging.getLogger('twcom')
 
 # create console handler and set level to info
@@ -23,9 +25,9 @@ logger.addHandler(handler)
 
 def init(fi=None):
     "init"
-    if fi is None:
-        fi = ':memory:'
-    client = MongoClient('localhost', 27017)
+    dic = yaml.load(open('pwd.yaml'))
+    uri = 'mongodb://{user}:{pwd}@localhost/{db}'.format(**dic)
+    client = MongoClient(uri)
     cn = client.twcom
     return cn
 cn = init()
