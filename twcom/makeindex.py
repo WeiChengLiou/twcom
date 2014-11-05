@@ -16,8 +16,11 @@ import time
 from work import *
 from utils import *
 
+CONFIG = yaml.load(open('config.yaml'))
 path = 'files'
 path = 'TW Company Download/files'
+path = '{0}/files'.format(CONFIG['src'])
+print path
 
 errcol = {}
 errid = {}
