@@ -1,0 +1,84 @@
+boards:
+    序號: no
+    姓名: name
+    職稱: title
+    出資額: equity
+    所代表法人: repr_inst
+
+baseinfo:
+    公司名稱: name
+    代表人姓名: leader
+    所營事業資料: business
+    經理人名單: manager
+    核准設立日期: startdate
+    公司所在地: addr
+    資本總額(元): capital
+    實收資本額(元): realcap
+    登記機關: gov
+    最後核准變更日期: chgdate
+    停業日期(起): stopdate0
+    停業日期(迄): stopdate1
+    延展開業日期(迄): penddate1
+    舊營業項目資料: business_old
+    公司狀況: status
+    股權狀況: eqtstate
+    董監事名單: boards
+
+
+indinfo:
+    商業名稱: name
+    負責人姓名: leader
+    合夥人姓名: partner
+    營業項目: business
+    核准設立日期: startdate
+    地址: addr
+    資本額(元): capital
+    登記機關: gov
+    最近異動日期: chgdate
+    現況: status
+    組織類型: type
+
+branchinfo:
+    分公司名稱: name
+    分公司經理姓名: leader
+    核准設立日期: startdate
+    分公司所在地: addr
+    最後核准變更日期: chgdate
+    撤銷日期: closedate
+    廢止日期: closedate
+    分公司狀況: status        
+    總(本)公司統一編號: id_papa
+
+fbranchinfo:
+    公司名稱: name
+    訴訟及非訴訟代理人姓名: leader
+    所營事業資料: business
+    核准認許日期: startdate
+    分公司所在地: addr
+    在中華民國境內營運資金: capital
+    登記機關: gov
+    最後核准變更日期: chgdate
+    停業日期(起): stopdate0
+    停業日期(迄): stopdate1
+    公司狀況: status
+    股權狀況: eqtstate
+# china company below
+    核准許可日期: startdate
+    核准許可報備日期: startdate
+    代表人在台灣地區業務活動範圍: business
+    在台灣地區營業所用: capital
+
+fagentinfo:
+    公司名稱: name
+    訴訟及非訴訟代理人姓名: leader
+    代表人在中華民國境內所為之法律行為: business
+    核准報備日期: startdate
+    辦事處所在地: addr
+    登記機關: gov
+    最後核准變更日期: chgdate
+    公司狀況: status
+# china company below
+    核准許可報備日期: startdate
+    代表人在台灣地區業務活動範圍: business
+    股權狀況: eqtstate
+

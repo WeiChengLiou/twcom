@@ -1,0 +1,12 @@
+baseinfo:
+    id, name, leader, startdate, addr, capital, realcap, gov, stopdate0, stopdate1, penddate1, chgdate, eqtstate, status
+fbranchinfo:
+    id, name, leader, startdate, addr, capital, gov, chgdate, stopdate0, stopdate1, eqtstate, status, name1
+fagentinfo:
+    id, name, leader, startdate, addr, gov, chgdate, eqtstate, status, name1
+indinfo:
+    id, name, leader, partner, startdate, addr, capital, gov, chgdate, status
+branchinfo:
+    id, name, leader, startdate, addr, chgdate, closedate, status, id_papa
+boards:
+    id, no, name, title, equity, repr_inst, repr_instid
