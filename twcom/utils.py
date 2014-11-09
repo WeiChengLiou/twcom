@@ -26,7 +26,7 @@ def init(fi=None):
     "init mongodb db class"
     #dic = yaml.load(open('pwd.yaml'))
     #uri = 'mongodb://{user}:{pwd}@localhost/{db}'.format(**dic)
-    uri = 'mongodb://reader:twcom@dataing.pw:27017/twcom'
+    uri = 'mongodb://localhost'
     client = MongoClient(uri)
     cn = client.twcom
     return cn
