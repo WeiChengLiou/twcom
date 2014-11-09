@@ -25,7 +25,13 @@
 
 ==檔案說明==
 
+twcom/
 * makeindex.py: 輸入資料、處理資料、整理公司連結
 * run_board_target.py: 處理同名同姓、整理董監事連結
 * query.py: 查詢網路關係圖
+* work.py: 常用小工具
+* utils.py: 資料庫相關函式
 
+visualize/
+* output.py: 產出 json
+* nbutils.py: 畫圖工具 (for IPython Notebook)

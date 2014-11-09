@@ -5,7 +5,6 @@ import re
 from pymongo import MongoClient
 import logging
 import yaml
-from pdb import set_trace
 logger = logging.getLogger('twcom')
 
 # create console handler and set level to info
@@ -24,9 +23,10 @@ logger.addHandler(handler)
 
 
 def init(fi=None):
-    "init"
+    "init mongodb db class"
     dic = yaml.load(open('pwd.yaml'))
     uri = 'mongodb://{user}:{pwd}@localhost/{db}'.format(**dic)
+    uri = 'mongodb://localhost'
     client = MongoClient(uri)
     cn = client.twcom
     return cn
@@ -40,6 +40,7 @@ def badmark():
 
 
 def bad_board(cn):
+    # get bad board name from badmark()
     condic = {'$or': [
         {'name': {'$regex': key}} for key in badmark()]}
     ret = list(cn.boards.find(condic, ['name']).distinct('name'))
@@ -48,6 +49,8 @@ def bad_board(cn):
 
 
 def getname(id):
+    # get company name by id
+    # if not found, return id
     ret = cn.cominfo.find_one({'id': id}, ['name'])
     if ret:
         return ret['name']
@@ -56,6 +59,7 @@ def getname(id):
 
 
 def getid(name):
+    # get company id by name
     ret = cn.iddic.find_one({'name': name})
     if ret:
         if len(ret['id']) == 1:
@@ -68,6 +72,7 @@ def getid(name):
 
 
 def badstatus(cn):
+    # return bad company status
     status = set()
     status.update(cn.cominfo.find(
         {'status': {'$not': re.compile(u'核准')}}).distinct('status'))

@@ -1,20 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#from output import *
-import numpy as np
-import pandas as pd
+
+from utils import *
 from work import *
+import numpy as np
 import itertools as it
 import networkx as nx
 from traceback import print_exc
 from pdb import set_trace
 import re
 from collections import defaultdict
-from utils import *
+
+
+def getbosslike(names):
+    # look for match boss given boss name
+    if not hasattr(names, '__iter__'):
+        names = [names]
+    for name in names:
+        ret = cn.bossnode.find({'name': name})
+        for r in ret:
+            yield bosskey(r['name'], r['target'])
 
 
 def get_boss_network(names, maxlvl=1, level=0, items=None, G=None):
-    # 逐級尋找上下游法人股東
+    # 逐級建立董監事網絡圖
 
     if not hasattr(names, '__iter__'):
         names = [names]
@@ -49,8 +58,15 @@ def get_boss_network(names, maxlvl=1, level=0, items=None, G=None):
     return G
 
 
+def get_bossnet_boss(names):
+    # get boss network from boss name
+    names = list(getbosslike(names))
+    g = get_boss_network(names, maxlvl=1)
+    return g
+
+
 def get_network(ids, maxlvl=1, level=0, items=None, G=None):
-    # 逐級尋找上下游法人股東
+    # 逐級建立公司網絡圖
 
     if not hasattr(ids, '__iter__'):
         ids = [ids]
@@ -90,7 +106,7 @@ def get_network(ids, maxlvl=1, level=0, items=None, G=None):
 
 
 def getidlike(names):
-    # look for match id given name
+    # look for match id given company name
     if not hasattr(names, '__iter__'):
         names = [names]
     for name in names:
@@ -120,7 +136,7 @@ def invbosskey(key):
 
 
 def get_boss(id):
-    # get boss list
+    # get boss list by company id
     if not hasattr(id, '__iter__'):
         id = [id]
     for r in cn.boards.find({'id': {'$in': id},
@@ -134,8 +150,8 @@ def fixname(name):
     return name.replace(u'股份有限公司', u'')
 
 
-def clustering(xdic, k_clut=10):
-    # Clustering label ub k_clut clusters
+def cluster(xdic, k_clut=10):
+    # Clustering label in k_clut clusters
     xs = sorted(xdic.values())
     N = len(xdic)
     x_uniq = np.unique(xs)
@@ -162,12 +178,14 @@ def clustering(xdic, k_clut=10):
 
 
 def setnode(G, col, dic):
+    # set each col's value with dict
     for k, v in dic.iteritems():
         if k in G.node:
             G.node[k][col] = v
 
 
 def translate(vdic, dstlim, vlim=None):
+    # translate vdic's value in dstlim scale
     vs = vdic.values()
     if vlim:
         vmin, vmax = vlim
@@ -182,6 +200,10 @@ def translate(vdic, dstlim, vlim=None):
 
 
 def exp_boss(G, jsonfi):
+    # Export boss network
+    # Fill info, translate com count into size
+    # Cluster betweenness centrality into group
+    # Export graph
     if len(G.node) == 0:
         return
     G = G.to_undirected()
@@ -201,18 +223,22 @@ def exp_boss(G, jsonfi):
     ngrp = sum([v.get('group', 0) for v in G.node.values()])
     if ngrp == 0:
         print 'add group'
-        output = clustering(nx.betweenness_centrality(G))
+        output = cluster(nx.betweenness_centrality(G))
         setnode(G, 'group', output)
     exp_graph(G, jsonfi)
 
 
 def exp_company(G, jsonfi, **kwargs):
+    # Export company network
+    # Fill info, translate degree centrality into size
+    # Cluster betweenness centrality into group
+    # Export graph
     if len(G.node) == 0:
         return
     fill_company_info(G)
+    G1 = G.to_undirected(G)
 
     if any([('size' not in dic) for dic in G.node.values()]):
-        G1 = G.to_undirected(G)
         try:
             degs = translate(nx.degree_centrality(G1), [8, 60])
         except:
@@ -220,14 +246,17 @@ def exp_company(G, jsonfi, **kwargs):
         setnode(G, 'size', degs)
 
     if any([('group' not in dic) for dic in G.node.values()]):
-        output = clustering(nx.betweenness_centrality(G1))
+        output = cluster(nx.betweenness_centrality(G1))
         setnode(G, 'group', output)
 
     exp_graph(G, jsonfi)
 
 
-def getBoardbyID(args):
-    boards = cn.boards.find({'id': {'$in': args}})
+def getBoardbyID(ids):
+    # get board list by company ids
+    if not hasattr(ids, '__iter__'):
+        ids = [ids]
+    boards = cn.boards.find({'id': {'$in': ids}})
     df = getdf(boards)
     dic = {k: v[
         ['no', 'title', 'name', 'equity', 'repr_instid', 'repr_inst']
@@ -236,32 +265,31 @@ def getBoardbyID(args):
 
 
 def showkv(id, name, info=None, board=None):
+    # Prepare cominfo for tooltip
     s1 = []
 
     if info is None:
         s1.append(u'統一編號: %s' % id)
         s1.append(u'組織名稱: %s' % name)
     else:
-        cols = [('id', u'統一編號'), ('name', u'公司名稱'),
-                ('status', u'公司狀況'), ('eqtstate', u'股權狀況')]
-        for col, colname in cols:
-            if col in info:
-                s1.append(u'%s: %s' % (colname, unicode(info[col])))
+        coldic = [('id', u'統一編號'), ('name', u'公司名稱'),
+                  ('status', u'公司狀況'), ('eqtstate', u'股權狀況')]
+        fun = lambda col: col in info
+        for col, colname in it.ifilter(fun, coldic):
+            s1.append(u'%s: %s' % (colname, unicode(info[col])))
 
-    if board is not None:
+    if board:
         for k, q in board.iterrows():
             s1.append(u' '.join(map(unicode, q)))
     else:
         s1.append(u'無董監事資料')
 
     return u'\n'.join(s1)
-# ===
 
 
 def fill_company_info(G):
-    """ Fill company info,
-    remove company whose status not like '核准'.
-    """
+    # Fill company info,
+    # Remove company whose status not like '核准'.
 
     ids = G.node.keys()
     dic = {'id': {'$in': ids}, 'title': {'$ne': u'法人代表'}}
@@ -293,6 +321,7 @@ def fill_company_info(G):
 
 
 def fill_boss_node(G, names, coms):
+    # Fill boss node
     ret = cn.bossnode.find({
         'name': {'$in': list(names)},
         'coms': {'$in': list(coms)}})
@@ -305,6 +334,7 @@ def fill_boss_node(G, names, coms):
 
 
 def fill_boss_info(G):
+    # Fill boss info
     names, coms = zip(*[x.split(u'\t') for x in G.node.keys()])
     names, coms = set(names), set(coms)
 
@@ -344,6 +374,7 @@ def fill_boss_info(G):
 
 
 def getbosskey(name, id):
+    # get boss key
     ret = cn.bossnode.find_one(
         {'name': name,
          'coms': {'$in': [id]}})
@@ -353,90 +384,24 @@ def getbosskey(name, id):
         return None
 
 
-def getcomboss(id):
-    if not hasattr(id, '__iter__'):
-        id = [id]
+def getcomboss(ids):
+    # get bossnode by company id
+    if not hasattr(ids, '__iter__'):
+        ids = [ids]
 
-    ret = cn.boards.find({'id': {'$in': id}})
+    ret = cn.boards.find({'id': {'$in': ids}})
     for r in ret:
-        yield getbosskey(r['name'], r['target'])
-
-
-def test_comboss(id):
-    # id = getid(u'東賢投資有限公司')
-    # print id
-    names, coms = zip(*[x.split('\t') for x in getcomboss(id)])
-    sprint(names)
-    comdic = defaultdict(int)
-    ret = cn.bossnode.find({'name': {'$in': names},
-                            'coms': {'$in': [id]}})
-    for r in ret:
-        for id in r['coms']:
-            comdic[id] += 1
-
-    df = pd.DataFrame(pd.Series(comdic, name='count'))
-    df['name'] = map(getname, df.index)
-    df['seat'] = [0]*len(df)
-
-    for r in cn.cominfo.find({'id': {'$in': df.index.tolist()}}):
-        df.ix[r['id'], 'seat'] = r['boardcnt']
-    df['ratio'] = df.T.apply(lambda x: float(x['count'])/x['seat']*100 if x['seat']>0 else 0)
-    df = df.sort('ratio')
-    ids = df[df['ratio']>50].index.tolist()
-    return ids
-
-
-def test_boss_network():
-    id = '70827383'
-    id = getid(u'中央投資股份有限公司')
-    print id
-    names = list(getcomboss(id))
-    G = get_boss_network(names, maxlvl=1)
-    print len(G.node), sum([len(v) for k, v in G.edge.iteritems()])
-    fill_boss_info(G)
-
-    dic = defaultdict(int)
-    for k, v in G.node.iteritems():
-        for id in v['coms']:
-            dic[id] += 1
-    # dic=pd.Series(dic)
-    # dic.sort(ascending=False)
-    # dic = pd.DataFrame(dic)
-    # dic['name'] = map(getname, dic.index)
-    betw = pd.Series(nx.betweenness_centrality(G))
-    betw.sort(ascending=True)
-    betw.index = [x for x in betw.index]
-    print betw
-
-
-    #betw.tail(20).plot(kind='barh')
-    nx.draw_graphviz(G)
-    plt.show()
-
-    exp_boss(G, 'test.json')
+        yield bosskey(r['name'], r['target'])
 
 
 def get_bossesnet(ids):
+    # get boss network from company ids
+    # fill boss info for export
     names = list(getcomboss(ids))
     G = get_boss_network(names, maxlvl=1)
     fill_boss_info(G)
     return G
 
 
-from matplotlib import pylab as plt
 if __name__ == '__main__':
     """"""
-    # test()
-    # execfile('makeindex.py')
-    # G = get_boss_network(u'王文淵')
-    # print len(G.node)
-    # exp_boss(G, 'test.json')
-    # nx.draw_graphviz(G)
-    # plt.show()
-
-    # for r in get_name_like(u'統一'):
-    #     print r
-    #test_boss_network()
-    #get_bossesnet(['04278323', '28428379'])
-
-    #test_comboss()

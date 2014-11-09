@@ -17,21 +17,6 @@ def render_str(template, **params):
     return t.render(params)
 
 
-def test():
-    dic = {'nodes': [
-        {'size': 1, 'group': 1, 'name': 'a'},
-        {'size': 1, 'group': 1, 'name': 'b'}],
-        'links': [{'source': 1, 'target': 0, 'weight': 1},
-                  {'source': 1, 'target': 0, 'weight': 1}]}
-
-    jsonfi = 'test.json'
-    fi = 'test.html'
-    json.dump(dic, open(jsonfi, 'wb'))
-    color = 'category20b'
-
-    render_html(jsonfi, fi, color=color)
-
-
 def render_html(fi, **params):
     try:
         with open(fi, 'wb') as f:
@@ -63,6 +48,21 @@ def exp_graph(G, jsonfi):
         dic1.append(dic1[0])
     dicBig['links'] = dic1
     json.dump(dicBig, open(jsonfi, 'wb'))
+
+
+def test():
+    dic = {'nodes': [
+        {'size': 1, 'group': 1, 'name': 'a'},
+        {'size': 1, 'group': 1, 'name': 'b'}],
+        'links': [{'source': 1, 'target': 0, 'weight': 1},
+                  {'source': 1, 'target': 0, 'weight': 1}]}
+
+    jsonfi = 'test.json'
+    fi = 'test.html'
+    json.dump(dic, open(jsonfi, 'wb'))
+    color = 'category20b'
+
+    render_html(jsonfi, fi, color=color)
 
 
 if __name__ == '__main__':
