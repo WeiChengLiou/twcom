@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+</style>
+<head>
+<script language="javascript">
+function init() {
+    document.frm.ArrorColor[0].checked=true
+}
+function validate() {
+    var val = "";
+    var len  = document.frm.ArrowColor.length;
+    var i;
+
+    for (i = 0; i<len; i++) {
+        if (document.frm.ArrowColor[i].checked) {
+                val = document.frm.ArrowColor[i].value;
+                break;
+            }
+    }
+    chg_arrow_color(val)
+    return val;
+}
+</script>
+</head>
+<body>
+
+<form name="frm" action="">
+<p>
+    <input type="radio" name="ArrowColor" value="none" checked=true onClick="validate()">No Arrow
+    <input type="radio" name="ArrowColor" value="black" onClick="validate()">Arrow
+</p>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script language="javascript">
+
+
+var width = window.innerWidth*0.99,
+    height = window.innerHeight*0.9;
+
+
+var color = d3.scale.category10();
+
+
+var vis = d3.select("body")
+    .append("svg:svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("pointer-events", "all")
+    .append("svg:g")
+        .call(d3.behavior.zoom().on("zoom", redraw))
+    .append("svg:g");
+
+vis.append("svg:rect")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("fill", "white");
+
+var node,
+    nodeFontSize = 14;
+
+function redraw() {
+    vis.attr("transform",
+        "translate(" + d3.event.translate + ")"
+        + " scale(" + d3.event.scale + ")");
+    var scale = 1 / d3.event.scale;
+    vis.selectAll('rect').attr("transform", "translate(" + [-1 * (scale * d3.event.translate[0]), -1 * (scale * d3.event.translate[1])] + ")" + " scale(" + scale + ")");
+    node.attr("font-size", (nodeFontSize / d3.event.scale) + "px");
+}
+
+function chg_arrow_color(val) {
+    vis.selectAll("marker").style("fill", val);
+}
+
+var draw = function(json, arrow_fill) {
+    var force = d3.layout.force()
+        .charge(-600)
+        .linkDistance(200)
+        .size([width, height])
+        .nodes(json.nodes)
+        .links(json.links)
+        .start();
+
+    // build the arrow.
+    vis.append("svg:defs").selectAll("marker")
+            .data(["end"])      // Different link/path types can be defined here
+        .enter().append("svg:marker")    // This section adds in the arrows
+            .attr("id", String)
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 15)
+            .attr("refY", -1.5)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .style("fill", arrow_fill)
+            .style("opacity", .3)
+            .append("svg:path")
+            .attr("d", "M0,-5L10,0L0,5");
+
+    var path = vis.selectAll("path")
+        .data(json.links)
+    .enter().append("svg:path")
+        .attr("class", "link")
+        .attr("marker-end", "url(#end)")
+        .style("fill", "none")
+        .style("stroke-width", function(d) { return (+d.weight); })
+        //.style("stroke-width", "1.5px")
+        .style("stroke", "gray")
+        .style("stroke-opacity", .6);
+
+    node = vis.selectAll("circle.node")
+        .data(json.nodes)
+        .enter().append("svg:circle")
+        .attr("class", "node")
+        .attr("cx", function(d) {return d.x; })
+        .attr("cy", function(d) {return d.y; })
+        .attr("r", function(d) {return d.size; })
+        //.style("fill", 1)
+        .style("fill", function(d) { return color(d.group); })
+        .style("opacity", .6)
+        .call(force.drag);
+
+    node.append("svg:title")
+        .text(function(d) { return d.tooltip; })
+        //.style("font", "8px sans-serif")
+        .attr("x", function(d) {return d.x;})
+        .attr("y", function(d) {return d.y;})
+
+    vis.style("opacity", 1e-6)
+        .transition()
+        .duration(1000)
+        .style("opacity", 1);
+
+    // add the text 
+    text=vis.selectAll("text.node")
+        .data(json.nodes)
+        .enter().append("svg:text")
+        .attr("class", "node")
+        .attr("font-size", 12 + "px")
+        .attr("x", function(d) { return d.x; })
+        .attr("y", function(d) { return d.y; })
+        //.attr("dy", ".35em")
+        .style("fill", "black")
+        .attr("text-anchor" ,"middle")
+        .text(function(d) { return d.name; });
+
+    force.on("tick", function() {
+        path.attr("d", linkArc);
+
+        node.attr("cx", function(d) { return d.x; })
+            .attr("x", function(d) { return d.x; })
+            .attr("y", function(d) { return d.y; })
+            .attr("cy", function(d) { return d.y; });
+
+        text.attr("x", function(d) { return d.x; })
+            .attr("y", function(d) { return d.y; });
+
+    });
+
+};
+
+function linkArc(d) {
+    var dx = d.target.x - d.source.x,
+        dy = d.target.y - d.source.y,
+        dr = Math.sqrt(dx * dx + dy * dy);
+    return "M" + 
+        d.source.x + "," + 
+        d.source.y + "A" + 
+        dr + "," + dr + " 0 0,1 " + 
+        d.target.x + "," + 
+        d.target.y;
+};
+
+var data = d3.json("{{FileName}}", function(error, graph){
+    draw(graph, validate());
+});
+
+</script>
+
+</form>
+</body>

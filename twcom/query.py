@@ -10,6 +10,8 @@ from traceback import print_exc
 from pdb import set_trace
 import re
 from collections import defaultdict
+from vis import output as opt
+from os.path import join
 
 
 def getbosslike(names):
@@ -199,7 +201,7 @@ def translate(vdic, dstlim, vlim=None):
     return {k: (dstlim[0] + r * float(v - vmin)) for k, v in vdic.iteritems()}
 
 
-def exp_boss(G, jsonfi):
+def exp_boss(G, fi, **kwargs):
     # Export boss network
     # Fill info, translate com count into size
     # Cluster betweenness centrality into group
@@ -208,6 +210,7 @@ def exp_boss(G, jsonfi):
         return
     G = G.to_undirected()
     fill_boss_info(G)
+    print 'finish fill boss info'
 
     sizedic = {}
     for name, dic in G.node.iteritems():
@@ -225,10 +228,12 @@ def exp_boss(G, jsonfi):
         print 'add group'
         output = cluster(nx.betweenness_centrality(G))
         setnode(G, 'group', output)
-    exp_graph(G, jsonfi)
+
+    fi = join(kwargs.get('path', ''), fi + '.json')
+    opt.exp_graph(G, fi)
 
 
-def exp_company(G, jsonfi, **kwargs):
+def exp_company(G, fi, **kwargs):
     # Export company network
     # Fill info, translate degree centrality into size
     # Cluster betweenness centrality into group
@@ -249,7 +254,8 @@ def exp_company(G, jsonfi, **kwargs):
         output = cluster(nx.betweenness_centrality(G1))
         setnode(G, 'group', output)
 
-    exp_graph(G, jsonfi)
+    fi = join(kwargs.get('path', ''), fi + '.json')
+    opt.exp_graph(G, fi)
 
 
 def getBoardbyID(ids):
@@ -278,7 +284,7 @@ def showkv(id, name, info=None, board=None):
         for col, colname in it.ifilter(fun, coldic):
             s1.append(u'%s: %s' % (colname, unicode(info[col])))
 
-    if board:
+    if len(board) > 0:
         for k, q in board.iterrows():
             s1.append(u' '.join(map(unicode, q)))
     else:
@@ -291,6 +297,7 @@ def fill_company_info(G):
     # Fill company info,
     # Remove company whose status not like '核准'.
 
+    assert(len(G.node) > 0)
     ids = G.node.keys()
     dic = {'id': {'$in': ids}, 'title': {'$ne': u'法人代表'}}
     infos = {r['id']: r for r in cn.cominfo.find(dic)}
@@ -333,20 +340,25 @@ def fill_boss_node(G, names, coms):
             node['name'] = r['name']
 
 
+from datetime import datetime
 def fill_boss_info(G):
     # Fill boss info
-    names, coms = zip(*[x.split(u'\t') for x in G.node.keys()])
-    names, coms = set(names), set(coms)
+    names, coms = map(set, zip(*[x.split(u'\t') for x in G.node.keys()]))
+    # names, coms = set(names), set(coms)
 
     fill_boss_node(G, names, coms)
     [coms.update(x['coms']) for x in G.node.values()]
+    print '0', datetime.now().strftime('%H%M%S.%f')
     ret = cn.boards.find({
         'name': {'$in': list(names)},
         'id': {'$in': list(coms)}})
+    print '1', datetime.now().strftime('%H%M%S.%f')
     dic = defaultdict(list)
     for r in ret:
         key = bosskey(r['name'], r['target'])
         dic[key].append((r['id'], r['title']))
+    print len(dic)
+    print '2', datetime.now().strftime('%H%M%S.%f')
     for k, v in dic.iteritems():
         if k not in G.node:
             continue
@@ -367,6 +379,7 @@ def fill_boss_info(G):
         node['titles'] = grpli
         node['tooltip'] = u'\n'.join(grpli)
         node['size'] = len(node['coms'])
+    print '3', datetime.now().strftime('%H%M%S.%f')
 
     for k, v in G.node.iteritems():
         assert('titles' in v)

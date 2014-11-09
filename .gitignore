@@ -1,2 +1,4 @@
 *.pyc
 .*
+test/*.html
+test/*.json

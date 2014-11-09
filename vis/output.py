@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import jinja2
-import os
+from os.path import join, dirname
 import json
 import pdb
 from traceback import print_exc
 
-template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+template_dir = join(dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(template_dir),
     autoescape=True)
@@ -18,12 +18,23 @@ def render_str(template, **params):
 
 
 def render_html(fi, **params):
+    template = 'force_layout.html'
     try:
         with open(fi, 'wb') as f:
-            f.write(render_str('force_layout.html', **params))
+            f.write(render_str(template, **params))
     except:
         print_exc()
         pdb.set_trace()
+
+
+def write_d3(fi, **kwargs):
+    # Export d3 file, return htmrul
+    path = kwargs.get('path', '')
+    jsonfi = fi + '.json'
+    htmlfi = join(path, fi + '.html')
+
+    render_html(htmlfi, FileName=jsonfi, **kwargs)
+    return unicode(htmlfi)
 
 
 def exp_graph(G, jsonfi):
@@ -48,21 +59,6 @@ def exp_graph(G, jsonfi):
         dic1.append(dic1[0])
     dicBig['links'] = dic1
     json.dump(dicBig, open(jsonfi, 'wb'))
-
-
-def test():
-    dic = {'nodes': [
-        {'size': 1, 'group': 1, 'name': 'a'},
-        {'size': 1, 'group': 1, 'name': 'b'}],
-        'links': [{'source': 1, 'target': 0, 'weight': 1},
-                  {'source': 1, 'target': 0, 'weight': 1}]}
-
-    jsonfi = 'test.json'
-    fi = 'test.html'
-    json.dump(dic, open(jsonfi, 'wb'))
-    color = 'category20b'
-
-    render_html(jsonfi, fi, color=color)
 
 
 if __name__ == '__main__':

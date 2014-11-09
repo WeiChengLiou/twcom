@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from twcom.query import *
+from vis import output as opt
 
 
-def test_comboss(id):
-    # id = getid(u'東賢投資有限公司')
-    # print id
+def test_comboss():
+    id = getid(u'東賢投資有限公司')
+    print id
     names, coms = zip(*[x.split('\t') for x in getcomboss(id)])
     sprint(names)
     comdic = defaultdict(int)
@@ -31,32 +32,29 @@ def test_comboss(id):
 
 
 def test_boss_network():
-    id = '70827383'
     id = getid(u'中央投資股份有限公司')
     print id
     names = list(getcomboss(id))
     G = get_boss_network(names, maxlvl=1)
     print len(G.node), sum([len(v) for k, v in G.edge.iteritems()])
-    fill_boss_info(G)
 
-    dic = defaultdict(int)
-    for k, v in G.node.iteritems():
-        for id in v['coms']:
-            dic[id] += 1
-    # dic=pd.Series(dic)
-    # dic.sort(ascending=False)
-    # dic = pd.DataFrame(dic)
-    # dic['name'] = map(getname, dic.index)
-    betw = pd.Series(nx.betweenness_centrality(G))
-    betw.sort(ascending=True)
-    betw.index = [x for x in betw.index]
-    print betw
+    fi = 'test_bossnet'
+    path = 'test'
+    exp_boss(G, fi=fi, path=path)
+    opt.write_d3(fi, path=path)
+    print 'export boss network'
 
 
-    #betw.tail(20).plot(kind='barh')
-    nx.draw_graphviz(G)
-    plt.show()
+def test_com_network():
+    id = getid(u'中央投資股份有限公司')
+    print id
+    G = get_network(id, maxlvl=1)
+    print len(G.node), sum([len(v) for k, v in G.edge.iteritems()])
 
-    exp_boss(G, 'test.json')
-
+    fi = 'test_comnet'
+    path = 'test'
+    exp_company(G, fi=fi, path=path)
+    opt.write_d3(fi, path=path)
+    print 'export company network'
+    
 

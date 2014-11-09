@@ -3,10 +3,8 @@
 
 from twcom.query import *
 import test.test_query as tq
-import test.test_nbutils as tnb
+#import test.test_nbutils as tnb
 import matplotlib as mpl
-from matplotlib.pylab import plt
-import networkx as nx
 
 font = 'AR PL KaitiM Big5'
 mpl.rcParams['font.sans-serif'] = font
@@ -18,5 +16,6 @@ ids = ['04278323', '28428379']
 # nx.draw_graphviz(G)
 # plt.show()
 
-#tq.test_comboss(ids[0])
-
+# tq.test_comboss(ids[0])
+tq.test_com_network()
+tq.test_boss_network()

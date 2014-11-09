@@ -4,13 +4,9 @@
 import csv
 from markdown import markdown
 from IPython.display import HTML
-import os
-from visualize.output import render_html
 output_path = 'output'
-urlpath = output_path
 
 import pandas as pd
-import matplotlib as mpl
 from matplotlib import pylab as plt
 import networkx as nx
 import itertools as it
@@ -18,7 +14,7 @@ from twcom.utils import *
 
 
 def rendermd(markdown_str):
-    print 'Deprecated'
+    print 'Deprecated rendermd'
     if hasattr(markdown_str, '__iter__'):
         markdown_str = u''.join(markdown_str)
     return HTML(u"<p>{}</p>".format(markdown(markdown_str)))
@@ -43,7 +39,7 @@ class ListTable(list):
 
 
 def table_attr(s, border=1):
-    print 'Deprecated'
+    print 'Deprecated table_attr'
     return s.replace(u'<table>', u'<table border="{0}">'.format(border))
 
 
@@ -95,16 +91,6 @@ def htmlcsv(msg, df, fi):
     markdown_str = u"{0}：[HTML]({1}), [CSV]({2})".format(
         msg, html_url, csv_url)
     return HTML(u"{}</p>".format(markdown(markdown_str)))
-
-
-def write_d3(fi, dir, **kwargs):
-    # Export d3 file, return htmrul
-    fi1 = fi.replace('json', 'html')
-    htmlfi = os.path.join(output_path, dir, fi1)
-    htmlurl = os.path.join(urlpath, dir, fi1)
-
-    render_html(htmlfi, FileName=fi, **kwargs)
-    return unicode(htmlurl)
 
 
 def hideaxis(pos=None):
