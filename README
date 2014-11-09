@@ -17,11 +17,7 @@
 ==使用說明==
 
 1. 下載資料至相同資料夾下
-2. 輸入、修正資料庫，新增公司連結。執行 makeindex.py 下函數
-3. 處理同名同姓，新增董監事 node, edge。執行 run_board_target.py
-4. 查詢公司網路連結。使用 query.py 查詢
-5. 集團定義 comgroup.py
-6. 集團分類 cluster.py
+2. 執行 insdb.py
 
 ==檔案說明==
 
