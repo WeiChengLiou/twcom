@@ -14,10 +14,27 @@
 5. 根據董監事名單新增董監事連結至資料表 bossedge
 6. 進行集團分類
 
+==環境需求==
+
+1. Python
+    * IPython (use for editing in IPython notebook)
+    * pymongo
+    * pandas
+    * pyyaml
+    * networkx
+    * jinja2
+2. MongoDB
+
 ==使用說明==
 
-1. 下載資料至相同資料夾下
-2. 執行 insdb.py
+* Insert DB/ data preprocessing
+    1. 下載資料至相同資料夾下
+        * 載點: https://www.dropbox.com/sh/42oyn4ustp4ilhy/FRQA56UbG0
+    2. 執行 insdb.py
+
+* query
+    * 主要查詢函式皆在 query.py
+    * test.py 有查詢範例
 
 ==檔案說明==
 
@@ -31,3 +48,11 @@ twcom/
 visualize/
 * output.py: 產出 json
 * nbutils.py: 畫圖工具 (for IPython Notebook)
+
+==附註==
+
+MongoDB 請自行設定登入帳號密碼，
+以 twcom/utils.py 裡的 init() 統一登入。
+範例檔在 pwd.example.yaml。
+
+kmt.ipynb 為資料研究範例，但仍待修改
