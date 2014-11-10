@@ -201,7 +201,7 @@ def translate(vdic, dstlim, vlim=None):
     return {k: (dstlim[0] + r * float(v - vmin)) for k, v in vdic.iteritems()}
 
 
-def exp_boss(G, fi, **kwargs):
+def exp_boss(G, **kwargs):
     # Export boss network
     # Fill info, translate com count into size
     # Cluster betweenness centrality into group
@@ -220,15 +220,13 @@ def exp_boss(G, fi, **kwargs):
 
     ngrp = sum([v.get('group', 0) for v in G.node.values()])
     if ngrp == 0:
-        print 'add group'
         output = cluster(nx.betweenness_centrality(G))
         setnode(G, 'group', output)
 
-    fi = join(kwargs.get('path', ''), fi + '.json')
-    opt.exp_graph(G, fi)
+    return opt.exp_graph(G, **kwargs)
 
 
-def exp_company(G, fi, **kwargs):
+def exp_company(G, **kwargs):
     # Export company network
     # Fill info, translate degree centrality into size
     # Cluster betweenness centrality into group
@@ -249,8 +247,7 @@ def exp_company(G, fi, **kwargs):
         output = cluster(nx.betweenness_centrality(G1))
         setnode(G, 'group', output)
 
-    fi = join(kwargs.get('path', ''), fi + '.json')
-    opt.exp_graph(G, fi)
+    return opt.exp_graph(G, **kwargs)
 
 
 def getBoardbyID(ids):

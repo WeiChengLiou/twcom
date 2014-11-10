@@ -37,7 +37,7 @@ def write_d3(fi, **kwargs):
     return unicode(htmlfi)
 
 
-def exp_graph(G, jsonfi):
+def exp_graph(G, **kwargs):
     for k, v in G.node.iteritems():
         if 'size' not in v:
             v['size'] = 10
@@ -58,7 +58,12 @@ def exp_graph(G, jsonfi):
     if len(dic1) > 0:
         dic1.append(dic1[0])
     dicBig['links'] = dic1
-    json.dump(dicBig, open(jsonfi, 'wb'))
+
+    if 'fi' in kwargs:
+        jsonfi = join(kwargs.get('path', ''), kwargs.get('fi') + '.json')
+        json.dump(dicBig, open(jsonfi, 'wb'))
+    else:
+        return json.dumps(dicBig)
 
 
 if __name__ == '__main__':
