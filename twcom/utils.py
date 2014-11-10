@@ -24,9 +24,8 @@ logger.addHandler(handler)
 
 def init(fi=None):
     "init mongodb db class"
-    #dic = yaml.load(open('pwd.yaml'))
-    #uri = 'mongodb://{user}:{pwd}@localhost/{db}'.format(**dic)
-    uri = 'mongodb://localhost'
+    dic = yaml.load(open('pwd.example.yaml'))
+    uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
     client = MongoClient(uri)
     cn = client.twcom
     return cn
