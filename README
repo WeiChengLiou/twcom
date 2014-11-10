@@ -16,6 +16,11 @@
 
 ==環境需求==
 
+以下僅列出基本會用到的套件，
+requirements.txt 為安裝套件清單，可直接下 pip install -r requirements.txt 一次安裝完畢。
+但本清單未包含 matplotlib，若有需求者請另外安裝。
+若不希望安裝新套件影響現有環境者，建議配合 virtualenv 使用。
+
 1. Python
     * IPython (use for editing in IPython notebook)
     * pymongo
