@@ -210,15 +210,10 @@ def exp_boss(G, fi, **kwargs):
         return
     G = G.to_undirected()
     fill_boss_info(G)
-    print 'finish fill boss info'
 
     sizedic = {}
     for name, dic in G.node.iteritems():
-        try:
-            sizedic[name] = len(dic['coms'])
-        except:
-            print_exc()
-            set_trace()
+        sizedic[name] = len(dic['coms'])
 
     deg = translate(sizedic, [5, 50])
     setnode(G, 'size', deg)
@@ -340,25 +335,22 @@ def fill_boss_node(G, names, coms):
             node['name'] = r['name']
 
 
-from datetime import datetime
 def fill_boss_info(G):
     # Fill boss info
-    names, coms = map(set, zip(*[x.split(u'\t') for x in G.node.keys()]))
-    # names, coms = set(names), set(coms)
+    names, ids = map(set, zip(*[x.split(u'\t') for x in G.node.keys()]))
 
-    fill_boss_node(G, names, coms)
-    [coms.update(x['coms']) for x in G.node.values()]
-    print '0', datetime.now().strftime('%H%M%S.%f')
+    fill_boss_node(G, names, ids)
+    [ids.update(x['coms']) for x in G.node.values()]
+    ids = tuple(ids)
     ret = cn.boards.find({
-        'name': {'$in': list(names)},
-        'id': {'$in': list(coms)}})
-    print '1', datetime.now().strftime('%H%M%S.%f')
+        'name': {'$in': tuple(names)},
+        'id': {'$in': ids}})
     dic = defaultdict(list)
     for r in ret:
         key = bosskey(r['name'], r['target'])
         dic[key].append((r['id'], r['title']))
-    print len(dic)
-    print '2', datetime.now().strftime('%H%M%S.%f')
+
+    namedic = getnamedic(ids)
     for k, v in dic.iteritems():
         if k not in G.node:
             continue
@@ -367,8 +359,8 @@ def fill_boss_info(G):
 
         grpli = [k.split(u'\t')[0]]
         for id, grp in it.groupby(v, lambda x: x[0]):
-            com = getname(id)
-            grp = list(grp)
+            com = namedic[id]
+            grp = tuple(grp)
             if len(grp) > 1:
                 grpli.append(u'\n'.join(
                     [u'\t'.join([com, x[1]]) for x in grp
@@ -379,7 +371,6 @@ def fill_boss_info(G):
         node['titles'] = grpli
         node['tooltip'] = u'\n'.join(grpli)
         node['size'] = len(node['coms'])
-    print '3', datetime.now().strftime('%H%M%S.%f')
 
     for k, v in G.node.iteritems():
         assert('titles' in v)

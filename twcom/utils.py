@@ -5,6 +5,7 @@ import re
 from pymongo import MongoClient
 import logging
 import yaml
+from os.path import exists
 logger = logging.getLogger('twcom')
 
 # create console handler and set level to info
@@ -24,7 +25,10 @@ logger.addHandler(handler)
 
 def init(fi=None):
     "init mongodb db class"
-    dic = yaml.load(open('pwd.example.yaml'))
+    pwdfi = '../pwd.yaml'
+    if not exists(pwdfi):
+        pwdfi = 'pwd.example.yaml'
+    dic = yaml.load(open(pwdfi))
     uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
     client = MongoClient(uri)
     cn = client.twcom
@@ -55,6 +59,19 @@ def getname(id):
         return ret['name']
     else:
         return id
+
+
+def getnamedic(ids):
+    # get company name by multiple ids
+    # if not found, return id
+    # return dictionary(id, name)
+    if not hasattr(ids, '__iter__'):
+        ids = (ids,)
+    ret = cn.cominfo.find({'id': {'$in': ids}}, ['id', 'name'])
+    dic = {id: id for id in ids}
+    for r in ret:
+        dic[r['id']] = r['name']
+    return dic
 
 
 def getid(name):
