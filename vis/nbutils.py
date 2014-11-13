@@ -10,7 +10,9 @@ import pandas as pd
 from matplotlib import pylab as plt
 import networkx as nx
 import itertools as it
-from twcom.utils import *
+#from twcom.utils import *
+from twcom import utils
+from twcom import work
 
 
 def rendermd(markdown_str):
@@ -21,9 +23,11 @@ def rendermd(markdown_str):
 
 
 class ListTable(list):
-    """ Overridden list class which takes a 2-dimensional list of 
-    the form [[1,2,3],[4,5,6]], and renders an HTML Table in 
-    IPython Notebook. """
+    """
+    Overridden list class which takes a 2-dimensional list of
+    the form [[1,2,3],[4,5,6]], and renders an HTML Table in
+    IPython Notebook.
+    """
 
     def _repr_html_(self):
         html = [u"<table>"]
@@ -135,12 +139,25 @@ def printdf(s, coldic=None):
     return x
 
 
-def draw(g, ids=None, axishide=True, **kwargs):
-    # for drawing social network
+def drawcom(g, ids=None, **kwargs):
+    assert(len(g.node) > 0)
     if ids is None:
         ids = g.node.keys()
-    iddic = {k: fixname(getname(k)) for k in it.ifilter(
-        lambda x: x in ids, g.nodes())}
+    fids = it.ifilter(lambda x: x in ids, g.nodes())
+    namedic = {k: work.fixname(v) for k, v in
+               utils.getnamedic(list(fids)).iteritems()}
+    draw(g, namedic, **kwargs)
+
+
+def drawboss(g, names=None, **kwargs):
+    assert(len(g.node) > 0)
+    if not names:
+        names = g.node.keys()
+    draw(g, names, **kwargs)
+
+
+def draw(g, lbldic=None, **kwargs):
+    # for drawing social network
     node_color = map(lambda k: k[1].get('group', 0), g.node.iteritems())
     pos = nx.graphviz_layout(g)
     vmax = kwargs.get('vmax', max(node_color))
@@ -165,8 +182,52 @@ def draw(g, ids=None, axishide=True, **kwargs):
         node_size=node_size,
         )
     nx.draw_networkx_labels(
-        g, pos,
-        labels=iddic)
-    if axishide:
+        g, pos, labels=lbldic)
+    if kwargs.get('hideaxis', True):
         hideaxis(pos)
+
+
+def draw_scatter(g):
+    fig, ax = plt.subplots(1)
+    s = [len(v.get('titles', []))*20 for v in g.node.values()]
+    deg = nx.degree(g)
+    x = [deg[k] for k in g.node]
+    betw = nx.closeness_centrality(g.to_undirected())
+    y = [betw[k] for k in g.node]
+    c = [v.get('group', 0) for v in g.node.values()]
+    ax.scatter(x, y, c=c, cmap=plt.cm.jet, vmin=min(c),
+               vmax=max(c), s=s, alpha=0.3)
+    dic = defaultdict(list)
+    for i, (k, v) in enumerate(g.node.iteritems()):
+        pos = (x[i], round(y[i], 2))
+        if (pos[0] >= 10 and pos[1] >= 0.45):
+            dic[pos].append(v['name'])
+    for pos, v in dic.iteritems():
+        msg = u'\n'.join(v)
+        ax.text(pos[0], pos[1], msg, fontsize=16)
+
+        
+def draw_scatter1(g, sizefun=None, lblfun=None):
+    fig, ax = plt.subplots(1)
+    #s = [len(v.get('titles', []))*20 for v in g.node.values()]
+    s = map(sizefun, g.node.values())
+    deg = nx.degree(g)
+    x = [deg[k] for k in g.node]
+    betw = nx.closeness_centrality(g.to_undirected())
+    y = [betw[k] for k in g.node]
+    c = [v.get('group', 0) for v in g.node.values()]
+    ax.scatter(x, y, c=c, cmap=plt.cm.jet,
+               vmin=min(c), vmax=max(c), s=s, alpha=0.3)
+    if not lblfun:
+        return
+
+    dic = defaultdict(list)
+    for i, (k, v) in enumerate(g.node.iteritems()):
+        pos = (x[i], round(y[i], 2))
+        if lblfun(pos, v):
+        #if (pos[0]>=5 and pos[1]>=0.35) or len(v.get('titles', 0))>=5:
+            dic[pos].append(v['name'])
+        
+    for pos, v in dic.iteritems():
+        ax.text(pos[0], pos[1], u'\n'.join(v), fontsize=16)
 

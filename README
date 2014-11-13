@@ -60,4 +60,4 @@ MongoDB 請自行設定登入帳號密碼，
 以 twcom/utils.py 裡的 init() 統一登入。
 範例檔在 pwd.example.yaml。
 
-kmt.ipynb 為資料研究範例，但仍待修改
+kmt.ipynb 為資料研究範例

@@ -147,11 +147,6 @@ def get_boss(id):
         yield r
 
 
-def fixname(name):
-    # return reduced company name
-    return name.replace(u'股份有限公司', u'')
-
-
 def cluster(xdic, k_clut=10):
     # Clustering label in k_clut clusters
     xs = sorted(xdic.values())
@@ -276,7 +271,10 @@ def showkv(id, name, info=None, board=None):
         for col, colname in it.ifilter(fun, coldic):
             s1.append(u'%s: %s' % (colname, unicode(info[col])))
 
-    if len(board) > 0:
+    # Because board maybe None, or DataFrame,
+    # but can also be empty DataFrame or not.
+    # So combined two conditions here
+    if (board is not None) and (len(board) > 0):
         for k, q in board.iterrows():
             s1.append(u' '.join(map(unicode, q)))
     else:
@@ -297,9 +295,9 @@ def fill_company_info(G):
     noderm = []
     for id, dic in G.node.iteritems():
         info = infos[id] if id in infos else None
-        board = boards[id][[
-            'no', 'title', 'name', 'equity', 'repr_instid', 'repr_inst']].sort('no')\
-            if id in boards else None
+        board = boards[id][
+            ['no', 'title', 'name', 'equity', 'repr_instid', 'repr_inst']
+            ].sort('no') if id in boards else None
         if info:
             name = info['name']
         else:

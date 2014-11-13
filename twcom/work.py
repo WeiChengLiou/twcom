@@ -66,7 +66,7 @@ def sprint(args, **kwargs):
             if hasattr(x, '__iter__'):
                 justPrint = False
 
-        if justPrint==False:
+        if not justPrint:
             sprint(x, lvl=lvl+1)
         else:
             li.append(unicode(x))
@@ -89,6 +89,11 @@ def dicprint(args, **kwargs):
 
 def replaces(str0, words):
     return reduce(lambda x, y: x.replace(y, u''), words, str0)
+
+
+def fixname(name):
+    # return reduced company name
+    return replaces(name, (u'股份', u'有限', u'公司'))
 
 
 def lr_intr(l, r):
