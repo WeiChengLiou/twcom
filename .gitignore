@@ -3,3 +3,4 @@
 test/*.html
 test/*.json
 *.log
+*.ipynb
