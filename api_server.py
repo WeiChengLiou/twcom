@@ -54,9 +54,16 @@ class BossNetwork(restful.Resource):
         return query.exp_boss(G)
 
 
+class Root(restful.Resource):
+    def get(self):
+        return 'ok'
+
+
 api.add_resource(ComNetwork, '/com')
 api.add_resource(BossNetwork, '/boss')
+api.add_resource(Root, '/')
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+#app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
