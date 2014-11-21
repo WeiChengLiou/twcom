@@ -7,6 +7,7 @@ from flask.ext import restful
 from twcom import query
 from flask.ext.restful import reqparse
 
+
 def setlogger():
     logger = logging.getLogger('twcom')
     # Produce formater first
@@ -65,5 +66,4 @@ api.add_resource(Root, '/')
 
 
 if __name__ == '__main__':
-#app.run(debug=True)
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
