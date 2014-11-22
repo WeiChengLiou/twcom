@@ -399,8 +399,10 @@ def fill_boss_info(G):
 
 # }}}
 # {{{Advance search
+w2 = u'\u202c'
+
+
 def queryboss(name):
-    w2 = u'\u202c'
     #print u'{0},{1}|'.format(name, name[-1])
     #print (name.encode('utf8'))
     name = name.replace(w2, u'')
@@ -438,8 +440,10 @@ def get_network_names(names, maxlvl=None):
 def get_network_boss(name, maxlvl=None):
     # get network by boss name
     # input:
-    #   name: str, boss name
+    #   name: unicode, boss name
     # output: DiGraph
+    
+    name = name.replace(w2, u'')
     bosses = list(map(invbosskey, getbosslike(name)))
     names, targets = zip(*bosses)
     coms, ids = [], []
