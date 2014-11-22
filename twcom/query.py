@@ -400,6 +400,10 @@ def fill_boss_info(G):
 # }}}
 # {{{Advance search
 def queryboss(name):
+    w2 = u'\u202c'
+    #print u'{0},{1}|'.format(name, name[-1])
+    #print (name.encode('utf8'))
+    name = name.replace(w2, u'')
     ret = list(cn.bossnode.find({'name': name}, {'_id': 0}))
     ids = list(flatten([r['coms'] for r in ret]))
     dic = getnamedic(ids)
