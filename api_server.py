@@ -6,6 +6,7 @@ from flask import Flask
 from flask.ext import restful
 from twcom import query
 from flask.ext.restful import reqparse
+import json
 
 
 def setlogger():
@@ -34,16 +35,40 @@ setlogger()
 app = Flask(__name__)
 api = restful.Api(app)
 compars = reqparse.RequestParser()
-compars.add_argument('id', type=str)
+compars.add_argument('id', type=unicode)
+compars.add_argument('boss', type=unicode)
+compars.add_argument('comboss', type=unicode)
+compars.add_argument('comaddr', type=unicode)
+compars.add_argument('maxlvl', type=int)
+
 bospars = reqparse.RequestParser()
-bospars.add_argument('name', type=str)
-bospars.add_argument('id', type=str)
+bospars.add_argument('name', type=unicode)
+bospars.add_argument('id', type=unicode)
+
+
+qrypars = reqparse.RequestParser()
+qrypars.add_argument('name', type=unicode)
+qrypars.add_argument('com', type=unicode)
 
 
 class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
-        G = query.get_network(args['id'], maxlvl=1)
+        if args.get('id'):
+            G = query.get_network(args['id'], maxlvl=1)
+        elif args.get('boss'):
+            G = query.get_network_boss(
+                args.get('boss'),
+                maxlvl=args.get('maxlvl'))
+        elif args.get('comboss'):
+            G = query.get_network_comboss(
+                args.get('comboss'),
+                maxlvl=args.get('maxlvl'))
+        elif args.get('comaddr'):
+            G = query.get_network_comaddr(
+                args.get('comaddr'),
+                maxlvl=args.get('maxlvl'))
+
         return query.exp_company(G)
 
 
@@ -55,6 +80,16 @@ class BossNetwork(restful.Resource):
         return query.exp_boss(G)
 
 
+class Query(restful.Resource):
+    def get(self):
+        args = qrypars.parse_args()
+        if args.get('name'):
+            return json.dumps(query.queryboss(args.get('name')))
+        elif args.get('com'):
+            return json.dumps({r['id']: r['name']
+                              for r in query.getidlike(args.get('com'))})
+
+
 class Root(restful.Resource):
     def get(self):
         return 'ok'
@@ -62,6 +97,7 @@ class Root(restful.Resource):
 
 api.add_resource(ComNetwork, '/com')
 api.add_resource(BossNetwork, '/boss')
+api.add_resource(Query, '/query')
 api.add_resource(Root, '/')
 
 
