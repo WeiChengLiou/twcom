@@ -74,7 +74,7 @@ class ComItem(object):
     def read(self, kv, coldic):
         for k, v in kv[1].iteritems():
             key = coldic.get(k)
-            if not k:
+            if not key:
                 # 遇到異常欄位就要先註記再即時 debug
                 if k not in errcol.keys():
                     # 列出異常欄位名稱與公司統編

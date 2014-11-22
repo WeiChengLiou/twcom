@@ -30,7 +30,8 @@ comaddr: company id
 url/query?boss=
 boss: boss name
 
-7. query compnay name and id from company name (in SQL: "name like '%name%'")
+7. query company name and id from company name (in SQL: "name like '%name%'")
 
 url/query?name=
 name: company name
+
