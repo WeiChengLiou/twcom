@@ -47,7 +47,7 @@ bospars.add_argument('id', type=unicode)
 
 
 qrypars = reqparse.RequestParser()
-qrypars.add_argument('name', type=unicode)
+qrypars.add_argument('boss', type=unicode)
 qrypars.add_argument('com', type=unicode)
 
 
@@ -83,8 +83,8 @@ class BossNetwork(restful.Resource):
 class Query(restful.Resource):
     def get(self):
         args = qrypars.parse_args()
-        if args.get('name'):
-            return json.dumps(query.queryboss(args.get('name')))
+        if args.get('boss'):
+            return json.dumps(query.queryboss(args.get('boss')))
         elif args.get('com'):
             return json.dumps({r['id']: r['name']
                               for r in query.getidlike(args.get('com'))})

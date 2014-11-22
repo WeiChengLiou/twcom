@@ -32,6 +32,6 @@ boss: boss name
 
 7. query company name and id from company name (in SQL: "name like '%name%'")
 
-url/query?name=
-name: company name
+url/query?com=
+com: company name
 
