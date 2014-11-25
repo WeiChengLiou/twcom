@@ -413,14 +413,17 @@ def queryboss(name):
     return dic
 
 
-def get_bossnet_boss(names):
+def get_bossnet_boss(names, target=None, maxlvl=1):
     # get boss network from boss name
-    names = list(getbosslike(names))
-    g = get_boss_network(names, maxlvl=1)
+    if not target:
+        names = list(getbosslike(names))
+    else:
+        names = [getbosskey(names, target)]
+    g = get_boss_network(names, maxlvl)
     return g
 
 
-def get_bossesnet(ids):
+def get_bossesnet(ids, maxlvl):
     # get boss network from company ids
     # fill boss info for export
     names = list(getcomboss(ids))
@@ -437,17 +440,21 @@ def get_network_names(names, maxlvl=None):
     return get_network(ids, maxlvl=maxlvl)
 
 
-def get_network_boss(name, maxlvl=None):
+def get_network_boss(name, target=None, maxlvl=None):
     # get network by boss name
     # input:
     #   name: unicode, boss name
     # output: DiGraph
     
     name = name.replace(w2, u'')
-    bosses = list(map(invbosskey, getbosslike(name)))
-    names, targets = zip(*bosses)
+    if not target:
+        bosses = list(map(invbosskey, getbosslike(name)))
+        names, targets = zip(*bosses)
+        cond = {'name': name, 'target': {'$in': targets}}
+    else:
+        cond = {'name': name, 'target': target}
     coms, ids = [], []
-    for r in cn.bossnode.find({'name': name, 'target': {'$in': targets}}):
+    for r in cn.bossnode.find(cond):
         ids.extend(r['coms'])
         coms.append(r['coms'])
 

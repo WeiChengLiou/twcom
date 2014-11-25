@@ -37,6 +37,7 @@ api = restful.Api(app)
 compars = reqparse.RequestParser()
 compars.add_argument('id', type=unicode)
 compars.add_argument('boss', type=unicode)
+compars.add_argument('target', type=unicode)
 compars.add_argument('comboss', type=unicode)
 compars.add_argument('comaddr', type=unicode)
 compars.add_argument('maxlvl', type=int)
@@ -55,10 +56,13 @@ class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
         if args.get('id'):
-            G = query.get_network(args['id'], maxlvl=1)
+            G = query.get_network(
+                args['id'],
+                maxlvl=args.get('maxlvl'))
         elif args.get('boss'):
             G = query.get_network_boss(
                 args.get('boss'),
+                target=args.get('target'),
                 maxlvl=args.get('maxlvl'))
         elif args.get('comboss'):
             G = query.get_network_comboss(
