@@ -58,20 +58,20 @@ class ComNetwork(restful.Resource):
         if args.get('id'):
             G = query.get_network(
                 args['id'],
-                maxlvl=args.get('maxlvl'))
+                maxlvl=min(args.get('maxlvl', 1), 3))
         elif args.get('boss'):
             G = query.get_network_boss(
                 args.get('boss'),
                 target=args.get('target'),
-                maxlvl=args.get('maxlvl'))
+                maxlvl=min(args.get('maxlvl', 1), 3))
         elif args.get('comboss'):
             G = query.get_network_comboss(
                 args.get('comboss'),
-                maxlvl=args.get('maxlvl'))
+                maxlvla=min(args.get('maxlvl', 1), 3))
         elif args.get('comaddr'):
             G = query.get_network_comaddr(
                 args.get('comaddr'),
-                maxlvl=args.get('maxlvl'))
+                maxlvl=min(args.get('maxlvl', 1), 3))
 
         return query.exp_company(G)
 
