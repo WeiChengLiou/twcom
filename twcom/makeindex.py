@@ -12,6 +12,7 @@ from collections import defaultdict
 import yaml
 from datetime import datetime
 import pymongo
+from pymongo.errors import DuplicateKeyError
 import time
 from work import *
 from utils import *
@@ -94,6 +95,8 @@ class ComItem(object):
             else:
                 self.name1 = v[1]
                 self.name = v[0]
+            self.name = self.name.replace(u'証券', u'證券'). \
+                replace(u'證卷', u'證券').replace(u'台灣', u'臺灣')
             return
         elif key == 'boards':
             for boss in v:
@@ -160,9 +163,13 @@ class ComItem(object):
                     else:
                         vs['repr_inst'] = v
                         vs['repr_instid'] = '0'
+                    vs['repr_inst'] = vs['repr_inst'].replace(u'証券', u'證券'). \
+                        replace(u'證卷', u'證券').replace(u'台灣', u'臺灣')
                 else:
                     vs[boardic[col]] = v
 
+            vs['name'] = vs['name'].replace(u'証券', u'證券'). \
+                replace(u'證卷', u'證券').replace(u'台灣', u'臺灣')
             kvs = tuple([vs[k] for k in (
                 'id', 'name', 'repr_inst', 'repr_instid')])
             if kvs in sets:
@@ -170,15 +177,16 @@ class ComItem(object):
                 with open('boards_dbl.csv', 'a') as f:
                     f.write(u','.join(map(unicode, kvs)).encode('utf8'))
                     f.write(u'\n'.encode('utf8'))
+                continue
             else:
                 sets.add(kvs)
 
-            try:
-                cn.boards.insert(vs)
-                cnt += 1
-            except:
-                print_exc()
-                set_trace()
+                try:
+                    cn.boards.insert(vs)
+                    cnt += 1
+                except:
+                    print_exc()
+                    set_trace()
 
         self.boardcnt = cnt
 
@@ -245,7 +253,7 @@ def refresh():
     f.close()
     runjobs(instbl)
 
-    fixing()
+    #fixing()
 
 
 def fixing():
@@ -253,10 +261,9 @@ def fixing():
 
     # 新增公司名稱與統編對照（僅留下尚在經營公司）
     ins_iddic()
+
     # 修正董監事資料錯別字
     fixdata()
-    # 新增董監事名單錯別字至名稱對照
-    fixrepr()
 
     for i in range(20):
         # 修正董監事名單（母函數）
@@ -416,7 +423,7 @@ def fixboards():
     # 修正董監事名單（母函數）
     condition = {'repr_inst': {'$ne': ''}}
     reprids = cn.boards.find(condition).distinct('repr_inst')
-    step = 200
+    step = 1
     totcnt = len(reprids) / 200 + 1
     logger.info('fixboards:  Total Count - {0}'.format(len(reprids)))
     toterr = 0
@@ -511,37 +518,10 @@ def fixdata():
                             print r
                     upd['repr_instid'] = ret['id'][0]
 
-                update_col(cn.boards, {'repr_inst': k}, upd)
+                update(cn.boards, {'repr_inst': k}, upd)
             except:
                 print_exc()
                 set_trace()
-
-
-def fixrepr():
-    # 新增董監事名單錯別字至名稱對照
-    def chgfun(name):
-        for q in cn.iddic.find({'name': name}):
-            if len(q['id']) > 1:
-                sprint([name, q['id']])
-            else:
-                for r in cn.boards.find({'name': name}):
-                    r['repr_instid'] = q['id'][0]
-                    r['repr_inst'] = name
-                    cn.boards.save(r)
-            chgfun.cnt += 1
-    chgfun.cnt = 0
-
-    for name in it.ifilter(lambda name: len(name) > 3,
-                           cn.boards.distinct('name')):
-        if u'證卷' in name:
-            name = name.replace(u'證卷', u'證券')
-        chgfun(name)
-
-        if u'台灣' in name:
-            chgfun(name.replace(u'台灣', u'臺灣'))
-        elif u'臺灣' in name:
-            chgfun(name.replace(u'臺灣', u'台灣'))
-    logger.info('{0}: {1}'.format(get_funname(), chgfun.cnt))
 
 
 def get_rawinfo(id):
