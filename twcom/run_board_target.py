@@ -27,56 +27,6 @@ def update_boss():
     run_upd_bossedges(idsall)
 
 
-def run_upd_boards(names=None):
-    """update all boards"""
-    step = 500
-    [upd_boards(x) for x in chunk(names, step)]
-
-    update_boss()
-
-
-def upd_boards(names):
-    """update boards: integrate id and repr_inst information"""
-    repli = []
-
-    """return grouped records by names"""
-    condic = {'name': {'$in': names}}
-    ret = cn.boards.find(condic)
-    dic = groupdic(ret, key=lambda r: r['name'])
-
-    for name, items in dic.iteritems():
-        if name == u'':
-            continue
-        if items is None:
-            print 'Error: ', name
-            repli.append(name)
-            continue
-
-        df = groupdic(items, key=lambda r: r['id'])
-        grps = grouping(items)
-        upd_board_target(name, df, grps)
-    return repli
-
-
-def upd_board_target(name, df, grps):
-    """update boards info"""
-    for grp in grps:
-        target = None
-        for id in grp:
-            if target is None:
-                target = id
-
-            for r in df[id]:
-                # r = df[id]
-                if r.get('target') == target:
-                    continue
-                r['target'] = target
-                if '_id' in r:
-                    cn.boards.save(r)
-                else:
-                    cn.boards.insert(r)
-
-
 def dup_bossname(comids):
     """save any two company's duplicate names and count by pair"""
     print get_funname()
@@ -126,6 +76,56 @@ def dup_boardlist():
                 'com1': r['com1'],
                 'com2': r['com2']}
             cn.grpconn.save(dic)
+
+
+def run_upd_boards(names=None):
+    """update all boards"""
+    step = 500
+    [upd_boards(x) for x in chunk(names, step)]
+
+    update_boss()
+
+
+def upd_boards(names):
+    """update boards: integrate id and repr_inst information"""
+    repli = []
+
+    """return grouped records by names"""
+    condic = {'name': {'$in': names}}
+    ret = cn.boards.find(condic)
+    dic = groupdic(ret, key=lambda r: r['name'])
+
+    for name, items in dic.iteritems():
+        if name == u'':
+            continue
+        if items is None:
+            print 'Error: ', name
+            repli.append(name)
+            continue
+
+        df = groupdic(items, key=lambda r: r['id'])
+        grps = grouping(items)
+        upd_board_target(name, df, grps)
+    return repli
+
+
+def upd_board_target(name, df, grps):
+    """update boards info"""
+    for grp in grps:
+        target = None
+        for id in grp:
+            if target is None:
+                target = id
+
+            for r in df[id]:
+                # r = df[id]
+                if r.get('target') == target:
+                    continue
+                r['target'] = target
+                if '_id' in r:
+                    cn.boards.save(r)
+                else:
+                    cn.boards.insert(r)
 
 
 def grouping(items, grps=None):

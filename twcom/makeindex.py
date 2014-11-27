@@ -40,6 +40,17 @@ fis = sorted(list(it.ifilter(
 fis1 = it.ifilter(lambda x: x[0] == '0', fis)
 
 
+class adjname(object):
+    li = [(u'\u3000', u' '),
+          (u'証券', u'證券'),
+          (u'證卷', u'證券'),
+          (u'台灣', u'臺灣')]
+
+    @staticmethod
+    def run(v):
+        return reduce(lambda x, y: x.replace(*y), adjname.li, v)
+
+
 # 每個 json item 可分為以下類別
 # 獨資企業： indinfo
 # 本土分公司： branchinfo
@@ -88,15 +99,17 @@ class ComItem(object):
                 self.process(key, v)
 
     def process(self, key, v):
-        if key == 'name' and isinstance(v, list):
-            if isinstance(v[1], list):
-                self.name1 = v[1][0]
-                self.name = v[0][0]
+        if key == 'name':
+            if isinstance(v, list):
+                if isinstance(v[1], list):
+                    self.name1 = v[1][0]
+                    self.name = v[0][0]
+                else:
+                    self.name1 = v[1]
+                    self.name = v[0]
             else:
-                self.name1 = v[1]
-                self.name = v[0]
-            self.name = self.name.replace(u'証券', u'證券'). \
-                replace(u'證卷', u'證券').replace(u'台灣', u'臺灣')
+                self.name = v
+            self.name = adjname.run(self.name)
             return
         elif key == 'boards':
             for boss in v:
@@ -124,7 +137,8 @@ class ComItem(object):
 
     def insinfo(self):
         # 輸入公司基本資料，每間公司有自己的類別
-        items = {'type': self.tbl}
+        items = {'type': self.tbl,
+                 'source': 'twcom'}
         for col in tblcol[self.tbl]:
             if not hasattr(self, col):
                 continue
@@ -154,7 +168,8 @@ class ComItem(object):
         sets = set()
         cnt = 0
         for boss in self.boards:
-            vs = {'id': self.id}
+            vs = {'id': self.id,
+                  'source': 'twcom'}
             for col, v in boss.iteritems():
                 if col == u'所代表法人':
                     if isinstance(v, list):
@@ -163,13 +178,11 @@ class ComItem(object):
                     else:
                         vs['repr_inst'] = v
                         vs['repr_instid'] = '0'
-                    vs['repr_inst'] = vs['repr_inst'].replace(u'証券', u'證券'). \
-                        replace(u'證卷', u'證券').replace(u'台灣', u'臺灣')
+                    vs['repr_inst'] = adjname.run(vs['repr_inst'])
                 else:
                     vs[boardic[col]] = v
 
-            vs['name'] = vs['name'].replace(u'証券', u'證券'). \
-                replace(u'證卷', u'證券').replace(u'台灣', u'臺灣')
+            vs['name'] = adjname.run(vs['name'])
             kvs = tuple([vs[k] for k in (
                 'id', 'name', 'repr_inst', 'repr_instid')])
             if kvs in sets:
@@ -423,7 +436,7 @@ def fixboards():
     # 修正董監事名單（母函數）
     condition = {'repr_inst': {'$ne': ''}}
     reprids = cn.boards.find(condition).distinct('repr_inst')
-    step = 1
+    step = 100
     totcnt = len(reprids) / 200 + 1
     logger.info('fixboards:  Total Count - {0}'.format(len(reprids)))
     toterr = 0
@@ -499,6 +512,7 @@ def fixdata():
     with open(fi) as f:
         for li in f:
             k, v = li[:-1].decode('utf8').split('\t')
+            v = adjname.run(v)
             print k, v
             try:
                 assert(isinstance(k, unicode))
