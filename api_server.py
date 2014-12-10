@@ -40,7 +40,7 @@ compars.add_argument('boss', type=unicode)
 compars.add_argument('target', type=unicode)
 compars.add_argument('comboss', type=unicode)
 compars.add_argument('comaddr', type=unicode)
-compars.add_argument('maxlvl', type=int)
+compars.add_argument('maxlvl', type=int, default=1)
 
 bospars = reqparse.RequestParser()
 bospars.add_argument('name', type=unicode)
@@ -52,26 +52,28 @@ qrypars.add_argument('boss', type=unicode)
 qrypars.add_argument('com', type=unicode)
 
 
+from pdb import set_trace
 class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
         if args.get('id'):
+            maxlvl=min(args['maxlvl'], 3)
             G = query.get_network(
                 args['id'],
-                maxlvl=min(args.get('maxlvl', 1), 3))
+                maxlvl=min(args['maxlvl'], 3))
         elif args.get('boss'):
             G = query.get_network_boss(
                 args.get('boss'),
                 target=args.get('target'),
-                maxlvl=min(args.get('maxlvl', 1), 3))
+                maxlvl=min(args['maxlvl'], 3))
         elif args.get('comboss'):
             G = query.get_network_comboss(
                 args.get('comboss'),
-                maxlvla=min(args.get('maxlvl', 1), 3))
+                maxlvl=min(args['maxlvl'], 3))
         elif args.get('comaddr'):
             G = query.get_network_comaddr(
                 args.get('comaddr'),
-                maxlvl=min(args.get('maxlvl', 1), 3))
+                maxlvl=min(args['maxlvl'], 3))
 
         return query.exp_company(G)
 
@@ -106,4 +108,4 @@ api.add_resource(Root, '/')
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=4000, debug=True)
