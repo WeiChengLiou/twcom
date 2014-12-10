@@ -52,6 +52,7 @@ qrypars.add_argument('boss', type=unicode)
 qrypars.add_argument('com', type=unicode)
 
 
+from pdb import set_trace
 class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
@@ -107,4 +108,4 @@ api.add_resource(Root, '/')
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=4000, debug=True)
