@@ -12,18 +12,27 @@ from utils import *
 #pool = mp.Pool(processes=2)
 
 
+bad_boards = bad_board(cn)
+
+
 def update_boss():
     """新增董監事資料表"""
     idsall = getcoms2()
     logger.info('Total company count: {0}'.format(len(idsall)))
+
     dup_bossname(idsall)
-    dup_boardlist()
 
     names = cn.boards.find(
-        {'name': {'$nin': bad_board(cn)}}).distinct('name')
+        {'name': {'$nin': bad_boards},
+         'source': 'twcom'}).\
+        distinct('name')
+
+    run_upd_boards(names)
+
+    dup_boardlist()
 
     fix_bad_board()
-    run_bossnodes(names=names, reset=True)
+    run_bossnodes(names=names, reset=False)
     run_upd_bossedges(idsall)
 
 
@@ -31,12 +40,11 @@ def dup_bossname(comids):
     """save any two company's duplicate names and count by pair"""
     print get_funname()
     cn.dupboss.drop()
-    cn.dupboss.ensure_index([
-        ('name', 1), ('com1', 1), ('com2', 2)], unique=True)
+    cn.grpconn.drop()
 
     rets = cn.boards.find(
         {'id': {'$in': comids},
-         'name': {'$nin': bad_board(cn)}},
+         'name': {'$nin': bad_boards}},
         ['id', 'name'])
     dic = defaultdict(set)
     [dic[r['id']].add(r['name']) for r in rets]
@@ -52,12 +60,27 @@ def dup_bossname(comids):
             continue
 
         dic = {
+            'source': 'twcom',
             'com1': id1,
             'com2': id2,
             'names': list(namedup),
             'cnt': len(namedup)
             }
         cn.dupboss.save(dic)
+
+        for name in namedup:
+            dic = {
+                'source': 'twcom',
+                'name': name,
+                'com1': id1,
+                'com2': id2}
+            cn.grpconn.save(dic)
+
+    cn.dupboss.ensure_index([
+        ('name', 1), ('com1', 1), ('com2', 2)], unique=True)
+    cn.grpconn.ensure_index(
+        [('name', 1), ('com1', 1), ('com2', 2)],
+        unique=True)
 
 
 def dup_boardlist():
@@ -80,10 +103,8 @@ def dup_boardlist():
 
 def run_upd_boards(names=None):
     """update all boards"""
-    step = 500
+    step = 1000
     [upd_boards(x) for x in chunk(names, step)]
-
-    update_boss()
 
 
 def upd_boards(names):
@@ -149,7 +170,7 @@ def grouping(items, grps=None):
 def fix_bad_board():
     """reset every bad names'target as id"""
     print get_funname()
-    badnames = bad_board(cn)
+    badnames = bad_boards
     for r in cn.boards.find({'name': {'$in': badnames}}):
         r['target'] = r['id']
         cn.boards.save(r)
@@ -162,18 +183,7 @@ def run_bossnodes(names=None, reset=False):
         cn.bossnode.drop()
         cn.bossnode.create_index([('name', 1), ('target', 1)], unique=True)
 
-    step = 500
-    if names is None:
-        if reset:
-            condic = {}
-            names = cn.boards.find(
-                {'name': {'$nin': bad_board(cn)}}).distinct('name')
-        else:
-            nnames = cn.jobs.find({'job': 'reset_bossnode'}).distinct('name')
-            condic = {'name': {'$nin': nnames}}
-            names = cn.boards.find(condic, ['name']).distinct('name')
-        logger.info('Total: {0}'.format(len(names)/step + 1))
-
+    step = 10000
     # map(reset_bossnode, chunk(names, step))
     map(reset_bossnode, list(chunk(names, step)))
     print 'Final'
@@ -182,11 +192,13 @@ def run_bossnodes(names=None, reset=False):
 def reset_bossnode(names):
     """reset boss node by names"""
     repli = []
-    ret = cn.boards.find({'name': {'$in': names}})
+    cond = {'name': {'$in': names},
+            'source': 'twcom'}
+    ret = cn.boards.find(cond)
     namedic = groupdic(ret, lambda r: r['name'])
     grpdic = defaultdict(groups)
     [grpdic[r['name']].add(r['com1'], r['com2'])
-        for r in cn.grpconn.find({'name': {'$in': names}})]
+        for r in cn.grpconn.find(cond)]
 
     for name, items in namedic.iteritems():
         if items is None:

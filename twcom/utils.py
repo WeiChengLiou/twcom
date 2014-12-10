@@ -23,7 +23,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-def init(fi=None):
+def init(db):
     "init mongodb db class"
     pwdfi = '../pwd1.yaml'
     if not exists(pwdfi):
@@ -31,8 +31,7 @@ def init(fi=None):
     dic = yaml.load(open(pwdfi))
     uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
     client = MongoClient(uri)
-    cn = client.twcom
-    return cn
+    return eval('client.%s'.format(db))
 cn = init()
 
 
