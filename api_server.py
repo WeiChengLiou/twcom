@@ -56,24 +56,24 @@ from pdb import set_trace
 class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
+        args['maxlvl'] = min(args['maxlvl'], 3)
         if args.get('id'):
-            maxlvl=min(args['maxlvl'], 3)
             G = query.get_network(
                 args['id'],
-                maxlvl=min(args['maxlvl'], 3))
+                maxlvl=args['maxlvl'])
         elif args.get('boss'):
             G = query.get_network_boss(
                 args.get('boss'),
                 target=args.get('target'),
-                maxlvl=min(args['maxlvl'], 3))
+                maxlvl=args['maxlvl'])
         elif args.get('comboss'):
             G = query.get_network_comboss(
                 args.get('comboss'),
-                maxlvl=min(args['maxlvl'], 3))
+                maxlvl=args['maxlvl'])
         elif args.get('comaddr'):
             G = query.get_network_comaddr(
                 args.get('comaddr'),
-                maxlvl=min(args['maxlvl'], 3))
+                maxlvl=args['maxlvl'])
 
         return query.exp_company(G)
 

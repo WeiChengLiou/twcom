@@ -27,9 +27,60 @@ def update_boss():
     run_upd_bossedges(idsall)
 
 
+def dup_bossname(comids):
+    """save any two company's duplicate names and count by pair"""
+    print get_funname()
+    cn.dupboss.drop()
+    cn.dupboss.ensure_index([
+        ('name', 1), ('com1', 1), ('com2', 2)], unique=True)
+
+    rets = cn.boards.find(
+        {'id': {'$in': comids},
+         'name': {'$nin': bad_board(cn)}},
+        ['id', 'name'])
+    dic = defaultdict(set)
+    [dic[r['id']].add(r['name']) for r in rets]
+
+    #rets = getdf(cn.boards.find(
+    #    {'id': {'$in': comids},
+    #     'name': {'$nin': bad_board(cn)}},
+    #    ['id', 'name']))
+
+    for (id1, df1), (id2, df2) in it.combinations(dic.iteritems(), 2):
+        namedup = df1.intersection(df2)
+        if len(namedup) <= 1:
+            continue
+
+        dic = {
+            'com1': id1,
+            'com2': id2,
+            'names': list(namedup),
+            'cnt': len(namedup)
+            }
+        cn.dupboss.save(dic)
+
+
+def dup_boardlist():
+    """save any two company's duplicate names by name"""
+    print get_funname()
+    cn.grpconn.drop()
+    cn.grpconn.ensure_index(
+        [('name', 1), ('com1', 1), ('com2', 2)],
+        unique=True)
+
+    ret = cn.dupboss.find()
+    for r in ret:
+        for name in r['names']:
+            dic = {
+                'name': name,
+                'com1': r['com1'],
+                'com2': r['com2']}
+            cn.grpconn.save(dic)
+
+
 def run_upd_boards(names=None):
     """update all boards"""
-    step = 1000
+    step = 500
     [upd_boards(x) for x in chunk(names, step)]
 
     update_boss()
@@ -68,64 +119,13 @@ def upd_board_target(name, df, grps):
 
             for r in df[id]:
                 # r = df[id]
-                if 'target' in r and r['target'] == target:
+                if r.get('target') == target:
                     continue
                 r['target'] = target
                 if '_id' in r:
                     cn.boards.save(r)
                 else:
                     cn.boards.insert(r)
-
-
-def dup_bossname(comids):
-    """save any two company's duplicate names and count by pair"""
-    print get_funname()
-    cn.dupboss.drop()
-    cn.dupboss.ensure_index([
-        ('name', 1), ('com1', 1), ('com2', 2)], unique=True)
-
-    rets = cn.boards.find(
-        {'id': {'$in': comids},
-         'name': {'$nin': bad_board(cn)}},
-        ['id', 'name'])
-    dic = defaultdict(set)
-    [dic[r['id']].add(r['name']) for r in rets]
-
-    rets = getdf(cn.boards.find(
-        {'id': {'$in': comids},
-         'name': {'$nin': bad_board(cn)}},
-        ['id', 'name']))
-
-    for (id1, df1), (id2, df2) in it.combinations(dic.iteritems(), 2):
-        namedup = df1.intersection(df2)
-        if len(namedup) <= 1:
-            continue
-
-        dic = {
-            'com1': id1,
-            'com2': id2,
-            'names': list(namedup),
-            'cnt': len(namedup)
-            }
-        cn.dupboss.save(dic)
-
-
-def dup_boardlist():
-    """save any two company's duplicate names by name"""
-    print get_funname()
-    cn.grpconn.drop()
-    cn.grpconn.ensure_index(
-        [('name', 1), ('com1', 1), ('com2', 2)],
-        unique=True)
-
-    ret = cn.dupboss.find()
-    for r in ret:
-        for name in r['names']:
-            dic = {
-                'name': name,
-                'com1': r['com1'],
-                'com2': r['com2']}
-            cn.grpconn.save(dic)
 
 
 def grouping(items, grps=None):

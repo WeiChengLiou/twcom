@@ -12,6 +12,7 @@ from collections import defaultdict
 import yaml
 from datetime import datetime
 import pymongo
+from pymongo.errors import DuplicateKeyError
 import time
 from work import *
 from utils import *
@@ -37,6 +38,17 @@ fis = sorted(list(it.ifilter(
     lambda x: ('bussiness' not in x) and ('0000' in x),
     os.listdir(path))))
 fis1 = it.ifilter(lambda x: x[0] == '0', fis)
+
+
+class adjname(object):
+    li = [(u'\u3000', u' '),
+          (u'証券', u'證券'),
+          (u'證卷', u'證券'),
+          (u'台灣', u'臺灣')]
+
+    @staticmethod
+    def run(v):
+        return reduce(lambda x, y: x.replace(*y), adjname.li, v)
 
 
 # 每個 json item 可分為以下類別
@@ -87,13 +99,17 @@ class ComItem(object):
                 self.process(key, v)
 
     def process(self, key, v):
-        if key == 'name' and isinstance(v, list):
-            if isinstance(v[1], list):
-                self.name1 = v[1][0]
-                self.name = v[0][0]
+        if key == 'name':
+            if isinstance(v, list):
+                if isinstance(v[1], list):
+                    self.name1 = v[1][0]
+                    self.name = v[0][0]
+                else:
+                    self.name1 = v[1]
+                    self.name = v[0]
             else:
-                self.name1 = v[1]
-                self.name = v[0]
+                self.name = v
+            self.name = adjname.run(self.name)
             return
         elif key == 'boards':
             for boss in v:
@@ -121,7 +137,8 @@ class ComItem(object):
 
     def insinfo(self):
         # 輸入公司基本資料，每間公司有自己的類別
-        items = {'type': self.tbl}
+        items = {'type': self.tbl,
+                 'source': 'twcom'}
         for col in tblcol[self.tbl]:
             if not hasattr(self, col):
                 continue
@@ -151,7 +168,8 @@ class ComItem(object):
         sets = set()
         cnt = 0
         for boss in self.boards:
-            vs = {'id': self.id}
+            vs = {'id': self.id,
+                  'source': 'twcom'}
             for col, v in boss.iteritems():
                 if col == u'所代表法人':
                     if isinstance(v, list):
@@ -160,9 +178,11 @@ class ComItem(object):
                     else:
                         vs['repr_inst'] = v
                         vs['repr_instid'] = '0'
+                    vs['repr_inst'] = adjname.run(vs['repr_inst'])
                 else:
                     vs[boardic[col]] = v
 
+            vs['name'] = adjname.run(vs['name'])
             kvs = tuple([vs[k] for k in (
                 'id', 'name', 'repr_inst', 'repr_instid')])
             if kvs in sets:
@@ -170,15 +190,16 @@ class ComItem(object):
                 with open('boards_dbl.csv', 'a') as f:
                     f.write(u','.join(map(unicode, kvs)).encode('utf8'))
                     f.write(u'\n'.encode('utf8'))
+                continue
             else:
                 sets.add(kvs)
 
-            try:
-                cn.boards.insert(vs)
-                cnt += 1
-            except:
-                print_exc()
-                set_trace()
+                try:
+                    cn.boards.insert(vs)
+                    cnt += 1
+                except:
+                    print_exc()
+                    set_trace()
 
         self.boardcnt = cnt
 
@@ -245,7 +266,7 @@ def refresh():
     f.close()
     runjobs(instbl)
 
-    fixing()
+    #fixing()
 
 
 def fixing():
@@ -253,10 +274,9 @@ def fixing():
 
     # 新增公司名稱與統編對照（僅留下尚在經營公司）
     ins_iddic()
+
     # 修正董監事資料錯別字
     fixdata()
-    # 新增董監事名單錯別字至名稱對照
-    fixrepr()
 
     for i in range(20):
         # 修正董監事名單（母函數）
@@ -416,7 +436,7 @@ def fixboards():
     # 修正董監事名單（母函數）
     condition = {'repr_inst': {'$ne': ''}}
     reprids = cn.boards.find(condition).distinct('repr_inst')
-    step = 200
+    step = 100
     totcnt = len(reprids) / 200 + 1
     logger.info('fixboards:  Total Count - {0}'.format(len(reprids)))
     toterr = 0
@@ -492,6 +512,7 @@ def fixdata():
     with open(fi) as f:
         for li in f:
             k, v = li[:-1].decode('utf8').split('\t')
+            v = adjname.run(v)
             print k, v
             try:
                 assert(isinstance(k, unicode))
@@ -511,37 +532,10 @@ def fixdata():
                             print r
                     upd['repr_instid'] = ret['id'][0]
 
-                update_col(cn.boards, {'repr_inst': k}, upd)
+                update(cn.boards, {'repr_inst': k}, upd)
             except:
                 print_exc()
                 set_trace()
-
-
-def fixrepr():
-    # 新增董監事名單錯別字至名稱對照
-    def chgfun(name):
-        for q in cn.iddic.find({'name': name}):
-            if len(q['id']) > 1:
-                sprint([name, q['id']])
-            else:
-                for r in cn.boards.find({'name': name}):
-                    r['repr_instid'] = q['id'][0]
-                    r['repr_inst'] = name
-                    cn.boards.save(r)
-            chgfun.cnt += 1
-    chgfun.cnt = 0
-
-    for name in it.ifilter(lambda name: len(name) > 3,
-                           cn.boards.distinct('name')):
-        if u'證卷' in name:
-            name = name.replace(u'證卷', u'證券')
-        chgfun(name)
-
-        if u'台灣' in name:
-            chgfun(name.replace(u'台灣', u'臺灣'))
-        elif u'臺灣' in name:
-            chgfun(name.replace(u'臺灣', u'台灣'))
-    logger.info('{0}: {1}'.format(get_funname(), chgfun.cnt))
 
 
 def get_rawinfo(id):

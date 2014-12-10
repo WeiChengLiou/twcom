@@ -1,5 +1,5 @@
 boards:
-    序號: no
+    序號: "no"
     姓名: name
     職稱: title
     出資額: equity
@@ -23,7 +23,6 @@ baseinfo:
     公司狀況: status
     股權狀況: eqtstate
     董監事名單: boards
-
 
 indinfo:
     商業名稱: name

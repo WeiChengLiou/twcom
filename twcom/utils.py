@@ -25,7 +25,7 @@ logger.addHandler(handler)
 
 def init(fi=None):
     "init mongodb db class"
-    pwdfi = '../pwd.yaml'
+    pwdfi = '../pwd1.yaml'
     if not exists(pwdfi):
         pwdfi = 'pwd.example.yaml'
     dic = yaml.load(open(pwdfi))
