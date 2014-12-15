@@ -1,5 +1,6 @@
 台灣公司關係圖研究
--------------------------------
+========================================
+
 
 台灣公司關係圖資料解構，分析流程如下：
 
@@ -14,7 +15,7 @@
 5. 根據董監事名單新增董監事連結至資料表 bossedge
 6. 進行集團分類
 
-==環境需求==
+## 環境需求
 
 以下僅列出基本會用到的套件，
 requirements.txt 為安裝套件清單，可直接下 pip install -r requirements.txt 一次安裝完畢。
@@ -30,7 +31,7 @@ requirements.txt 為安裝套件清單，可直接下 pip install -r requirement
     * jinja2
 2. MongoDB
 
-==使用說明==
+## 使用說明
 
 * Insert DB/ data preprocessing
     1. 下載資料至相同資料夾下
@@ -41,20 +42,39 @@ requirements.txt 為安裝套件清單，可直接下 pip install -r requirement
     * 主要查詢函式皆在 query.py
     * test.py 有查詢範例
 
-==檔案說明==
+## 檔案說明
 
-twcom/
-* makeindex.py: 輸入資料、處理資料、整理公司連結
-* run_board_target.py: 處理同名同姓、整理董監事連結
-* query.py: 查詢網路關係圖
-* work.py: 常用小工具
-* utils.py: 資料庫相關函式
+* twcom/
+    * makeindex.py: 輸入資料、處理資料、整理公司連結
+    * run_board_target.py: 處理同名同姓、整理董監事連結
+    * query.py: 查詢網路關係圖
+    * work.py: 常用小工具
+    * utils.py: 資料庫相關函式
 
-visualize/
-* output.py: 產出 json
-* nbutils.py: 畫圖工具 (for IPython Notebook)
+* visualize/
+    * output.py: 產出 json
+    * nbutils.py: 畫圖工具 (for IPython Notebook)
 
-==附註==
+## MongoDB collections
+
+公司基本資料皆統一存放於 cominfo collection 裡，
+以 type 分別定義不同的公司型態 (Ex: 獨資、股份有限公司、僑外資、分公司等)，
+關於原始資料對應的欄位名稱，可參見 filespec.yaml.
+
+董監事名單另外存於 boards collection.
+
+其餘 collections 則為因應網絡分析需要而產生.
+
+* cominfo: 公司基本資訊(exclude 營業項目)
+* boards: 董監事名單
+* comivst: 法人投資關係 links
+* dupboss: 公司間重複董監事名單 (summary)
+* grpconn: 公司間重複董監事名單
+* iddic: 公司名稱 -> 統一編號 對照表
+* bossnode: 分類後董監事 node (含代表公司統編)
+* bossedge: 分類後董監事 link
+
+## 附註
 
 MongoDB 請自行設定登入帳號密碼，
 以 twcom/utils.py 裡的 init() 統一登入。
