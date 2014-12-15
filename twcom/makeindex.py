@@ -250,9 +250,9 @@ def runjobs(*args):
 
 def refresh():
     # 新增、處理資料庫
-    global cn
+    #global cn
 
-    cn = init()
+    #cn = init(CONFIG['db'])
     cn.cominfo.drop()
     cn.cominfo.ensure_index([('id', 1), ('name', 1)], unique=True)
     cn.boards.drop()
@@ -273,7 +273,7 @@ def fixing():
     # Preprocessing
 
     # 新增公司名稱與統編對照（僅留下尚在經營公司）
-    ins_iddic()
+#ins_iddic()
 
     # 修正董監事資料錯別字
     fixdata()
@@ -511,14 +511,15 @@ def fixdata():
     fi = 'fix_board.txt'
     with open(fi) as f:
         for li in f:
+            print li[:-1]
             k, v = li[:-1].decode('utf8').split('\t')
             v = adjname.run(v)
-            print k, v
             try:
                 assert(isinstance(k, unicode))
                 assert(isinstance(v, unicode))
             except:
-                pdb.set_trace()
+                print_exc()
+                set_trace()
 
             try:
                 upd = {'repr_inst': v}

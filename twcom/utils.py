@@ -25,14 +25,16 @@ logger.addHandler(handler)
 
 def init(db):
     "init mongodb db class"
-    pwdfi = '../pwd1.yaml'
+    pwdfi = '../pwd.yaml'
     if not exists(pwdfi):
         pwdfi = 'pwd.example.yaml'
     dic = yaml.load(open(pwdfi))
     uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
     client = MongoClient(uri)
-    return eval('client.%s'.format(db))
-cn = init()
+    return eval('client.{0}'.format(db))
+
+CONFIG = yaml.load(open('config.yaml'))
+cn = init(CONFIG['db'])
 
 
 def badmark():
