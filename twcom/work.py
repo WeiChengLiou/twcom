@@ -3,6 +3,7 @@
 import pandas as pd
 import inspect
 from collections import defaultdict
+import itertools as it
 
 
 def groupdic(vals, key):
@@ -19,6 +20,12 @@ def chunk(x, n=1):
     """ Split list into every size-n chunk """
     for i in xrange(0, len(x), n):
         yield x[i:(i+n)]
+
+
+def take(li, n):
+    fun = lambda y: y[0] < n
+    for i, x in it.ifilter(fun, enumerate(li)):
+        yield x
 
 
 def getdf(ret):

@@ -379,19 +379,36 @@ def ins_comivst(coms):
     fill_hideboss(chkdic)
 
 
-def upd_degree(cn):
-    # 更新基本資料中連結數資訊
+def get_degree(cn):
+    # 取得連結數資訊
     dic = defaultdict(dict)
+    coldic = {('$src', 'ncom'): 'ncom_out',
+              ('$src', 'nseat'): 'nseat_out',
+              ('$dst', 'ncom'): 'ncom_in',
+              ('$dst', 'nseat'): 'nseat_in'}
+
+    def update(r, tbl):
+        d = dic[r.pop('_id')]
+        [d.__setitem__(coldic[(tbl, k)], v) for k, v in r.iteritems()]
 
     for col in ('$src', '$dst'):
         ret = cn.comivst.aggregate([{'$group': {
             '_id': '$src',
-            'cnt1': {'$sum': 1},
-            'cnt2': {'$sum': '$seat'}}}])['result']
-        for r in ret:
-            d = dic[r.pop('_id')]
-            [d.__setitem__(col+'.'+k, v) for k, v in dic.iteritems()]
+            'ncom': {'$sum': 1},
+            'nseat': {'$sum': '$seat'}}}])['result']
+        map(lambda r: update(r, col), ret)
+
     return dic
+
+
+def ins_degree(dic, cn):
+    # 新增連結數資訊
+    ret = cn.cominfo.find({'id': {'$in': dic.keys()}})
+    for r in ret:
+        parm = dic.pop(r['id'])
+        [r.__setitem__(k, v) for k, v in parm.iteritems()]
+        #cn.save(r)
+    print len(dic)
 
 
 def fill_hideboss(chkdic):
