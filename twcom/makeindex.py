@@ -11,7 +11,6 @@ from pdb import set_trace
 from collections import defaultdict
 import yaml
 from datetime import datetime
-import pymongo
 from pymongo.errors import DuplicateKeyError
 import time
 from work import *
@@ -380,6 +379,21 @@ def ins_comivst(coms):
     fill_hideboss(chkdic)
 
 
+def upd_degree(cn):
+    # 更新基本資料中連結數資訊
+    dic = defaultdict(dict)
+
+    for col in ('$src', '$dst'):
+        ret = cn.comivst.aggregate([{'$group': {
+            '_id': '$src',
+            'cnt1': {'$sum': 1},
+            'cnt2': {'$sum': '$seat'}}}])['result']
+        for r in ret:
+            d = dic[r.pop('_id')]
+            [d.__setitem__(col+'.'+k, v) for k, v in dic.iteritems()]
+    return dic
+
+
 def fill_hideboss(chkdic):
     # 新增各公司非董監事的法人代表
     for r in cn.boards.find({'id': {'$in': chkdic.keys()}}):
@@ -424,7 +438,7 @@ def update(collection, condition, setval, errfun=None):
             try:
                 collection.save(x)
                 break
-            except pymongo.errors.DuplicateKeyError:
+            except DuplicateKeyError:
                 if errfun:
                     errfun(x)
                 else:
@@ -577,4 +591,5 @@ if __name__ == '__main__':
     """"""
     ids = [u'75370905', u'16095002', u'73251209', u'75370601']
     #refresh()
+
 

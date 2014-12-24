@@ -7,6 +7,7 @@ from flask.ext import restful
 from twcom import query
 from flask.ext.restful import reqparse
 import json
+from pdb import set_trace
 
 
 def setlogger():
@@ -52,7 +53,6 @@ qrypars.add_argument('boss', type=unicode)
 qrypars.add_argument('com', type=unicode)
 
 
-from pdb import set_trace
 class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
@@ -92,8 +92,9 @@ class Query(restful.Resource):
         if args.get('boss'):
             return json.dumps(query.queryboss(args.get('boss')))
         elif args.get('com'):
-            return json.dumps({r['id']: r['name']
-                              for r in query.getidlike(args.get('com'))})
+            return json.dumps(
+                {r['id']: r['name']
+                 for r in query.getidlike(args.get('com'))})
 
 
 class Root(restful.Resource):
