@@ -2,23 +2,25 @@
 
 ## Company network
 
-1. Company network from **company id**
+Return Company network with node, edge informations
 
-    Syntax:
+1. Query by **company id**
 
-        url/com?id=&maxlvl=
+Syntax: url/com?id=&maxlvl=
 
-    Input:
+Input:
 
-        id: company id
-        maxlvl: max levels
+* id: company id
+* maxlvl: max levels
 
-    Output:
+Output:
 
-        company network with node, edge informations
+* node size: normalize if degree centrality
+* node color: cluster of betweeness centrality
+* link width: number of seats
 
 
-3. Company network from **boss name**
+2. Query by **boss name**
 
     Sytax:
 
@@ -34,7 +36,7 @@
         company network with node, edge informations
 
 
-4. Company network from **boards of the same company**
+3. Query by **boards of the same company**
 
     Syntax:
 
@@ -49,7 +51,8 @@
 
         company network with node, edge informations
 
-5. Company network from **address of the company**
+
+5. Query by **address of the company**
 
     Syntax:
 
@@ -67,7 +70,7 @@
 
 ## Boss network
 
-2. Boards network from **company id**
+2. Query by **company id**
 
     Syntax:
 
@@ -83,9 +86,9 @@
         Boss network with node, edge informations
 
 
-# Query for else
+## Query for else
 
-6. Query boss with similar name (in SQL: "name like '%boss%'")
+6. Query boss by similar name (in SQL: "name like '%boss%'")
 
     Syntax:
 
@@ -99,7 +102,7 @@
 
         dict of different group of bosses, {target: [companys]}
 
-7. Query company name and id from company name (in SQL: "name like '%name%'")
+7. Query company name and id by similar company name (in SQL: "name like '%name%'")
 
     Syntax:
 

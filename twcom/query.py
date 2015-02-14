@@ -445,7 +445,7 @@ def get_network_boss(name, target=None, maxlvl=None):
     # input:
     #   name: unicode, boss name
     # output: DiGraph
-    
+
     name = name.replace(w2, u'')
     if not target:
         bosses = list(map(invbosskey, getbosslike(name)))
