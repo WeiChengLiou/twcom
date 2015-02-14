@@ -6,18 +6,18 @@ Return Company network with node, edge informations
 
 1. Query by **company id**
 
-Syntax: url/com?id=&maxlvl=
+    Syntax: url/com?id=&maxlvl=
 
-Input:
+    Input:
 
-* id: company id
-* maxlvl: max levels
+    * id: company id
+    * maxlvl: max levels
 
-Output:
+    Output:
 
-* node size: normalize if degree centrality
-* node color: cluster of betweeness centrality
-* link width: number of seats
+    * node size: normalize if degree centrality
+    * node color: cluster of betweeness centrality
+    * link width: number of seats
 
 
 2. Query by **boss name**
