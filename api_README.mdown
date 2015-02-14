@@ -2,7 +2,7 @@
 
 ## Company network
 
-1. Company network from company id
+1. Company network from **company id**
 
     Syntax:
 
@@ -18,7 +18,7 @@
         company network with node, edge informations
 
 
-3. Company network from boss name
+3. Company network from **boss name**
 
     Sytax:
 
@@ -34,7 +34,7 @@
         company network with node, edge informations
 
 
-4. Company network from boards of the same company
+4. Company network from **boards of the same company**
 
     Syntax:
 
@@ -49,7 +49,7 @@
 
         company network with node, edge informations
 
-5. Company network from address of the company
+5. Company network from **address of the company**
 
     Syntax:
 
@@ -67,7 +67,7 @@
 
 ## Boss network
 
-2. Boards network from company id
+2. Boards network from **company id**
 
     Syntax:
 
