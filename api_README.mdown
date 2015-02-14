@@ -90,7 +90,7 @@ Return Company network with node, edge informations
 
 1. Query boss by similar name (in SQL: "name like '%boss%'")
 
-    Syntax: url/query/boss/<boss name>
+    Syntax: url/query?boss=<boss name>
 
     Input: boss name
 
@@ -101,7 +101,7 @@ Return Company network with node, edge informations
 
 2. Query company name and id by similar company name (in SQL: "name like '%name%'")
 
-    Syntax: url/query/com/<company name>
+    Syntax: url/query?com=<company name>
 
     Input: company name
 
@@ -112,7 +112,7 @@ Return Company network with node, edge informations
 
 3. Query board list by company id
 
-    Syntax: url/query/board/<id>
+    Syntax: url/query?board=<id>
 
     Input: id
 
