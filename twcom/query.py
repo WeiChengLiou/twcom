@@ -136,7 +136,7 @@ def get_boss(id, ind=False):
     cond = {'id': {'$in': id},
             'name': {'$ne': u'缺額'}}
     if not ind:
-         cond['title'] = {'$not': re.compile(u'.*獨立.*')}
+        cond['title'] = {'$not': re.compile(u'.*獨立.*')}
 
     for r in cn.boards.find(cond):
         yield r
@@ -406,8 +406,6 @@ w2 = u'\u202c'
 
 
 def queryboss(name):
-    #print u'{0},{1}|'.format(name, name[-1])
-    #print (name.encode('utf8'))
     name = name.replace(w2, u'')
     ret = list(cn.bossnode.find({'name': name}, {'_id': 0}))
     ids = list(flatten([r['coms'] for r in ret]))

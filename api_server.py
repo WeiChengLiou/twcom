@@ -51,6 +51,7 @@ bospars.add_argument('id', type=unicode)
 qrypars = reqparse.RequestParser()
 qrypars.add_argument('boss', type=unicode)
 qrypars.add_argument('com', type=unicode)
+qrypars.add_argument('board', type=unicode)
 
 
 class ComNetwork(restful.Resource):
@@ -90,13 +91,18 @@ class Query(restful.Resource):
     def get(self):
         args = qrypars.parse_args()
         if args.get('boss'):
-            return json.dumps(query.queryboss(args.get('boss')))
+            dic = query.queryboss(args.get('boss'))
         elif args.get('com'):
-            return json.dumps(
+            dic = (
                 {r['id']: r['name']
                  for r in query.getidlike(args.get('com'))})
         elif args.get('board'):
-            return json.dumps(query.get_boss(args.get('board')))
+            dic = []
+            for r in query.get_boss(args.get('board'), ind=True):
+                del(r['_id'])
+                dic.append(r)
+
+        return json.dumps(dic)
 
 
 class Root(restful.Resource):
