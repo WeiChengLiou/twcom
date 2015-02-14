@@ -129,7 +129,7 @@ def invbosskey(key):
         return key.split(u'\t')
 
 
-def get_boss(id, ind=False):
+def get_boss(id, ind=False, no_id=False):
     # get boss list by company id
     if not hasattr(id, '__iter__'):
         id = [id]
@@ -138,7 +138,9 @@ def get_boss(id, ind=False):
     if not ind:
         cond['title'] = {'$not': re.compile(u'.*獨立.*')}
 
-    for r in cn.boards.find(cond):
+    colcond = {'_id': 0} if no_id else None
+
+    for r in cn.boards.find(cond, colcond):
         yield r
 
 
