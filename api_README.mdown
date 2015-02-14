@@ -1,4 +1,6 @@
-Taiwan Company's Network Rest API
+# Taiwan Company's Network Rest API
+
+## Company network
 
 1. Company network from company id
 
@@ -14,21 +16,6 @@ Taiwan Company's Network Rest API
     Output:
 
         company network with node, edge informations
-
-2. Boards network from company id
-
-    Syntax:
-
-        url/boss?id=&maxlvl=
-
-    Input:
-
-        id: company id
-        maxlvl: max levels
-
-    Output:
-
-        Boss network with node, edge informations
 
 
 3. Company network from boss name
@@ -77,6 +64,27 @@ Taiwan Company's Network Rest API
 
         company network with node, edge informations
 
+
+## Boss network
+
+2. Boards network from company id
+
+    Syntax:
+
+        url/boss?id=&maxlvl=
+
+    Input:
+
+        id: company id
+        maxlvl: max levels
+
+    Output:
+
+        Boss network with node, edge informations
+
+
+# Query for else
+
 6. Query boss with similar name (in SQL: "name like '%boss%'")
 
     Syntax:
@@ -104,3 +112,4 @@ Taiwan Company's Network Rest API
     Output:
 
         dict of companys, {id: name}
+
