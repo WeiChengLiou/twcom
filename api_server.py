@@ -86,15 +86,21 @@ class BossNetwork(restful.Resource):
         return query.exp_boss(G)
 
 
-class Query(restful.Resource):
-    def get(self):
-        args = qrypars.parse_args()
-        if args.get('boss'):
-            return json.dumps(query.queryboss(args.get('boss')))
-        elif args.get('com'):
-            return json.dumps(
-                {r['id']: r['name']
-                 for r in query.getidlike(args.get('com'))})
+class Queryboss(restful.Resource):
+    def get(self, boss):
+        return json.dumps(query.queryboss(boss))
+
+
+class Querycom(restful.Resource):
+    def get(self, name):
+        return json.dumps(
+            {r['id']: r['name']
+             for r in query.getidlike(name)})
+
+
+class Queryboard(restful.Resource):
+    def get(self, id):
+        return json.dumps(query.get_boss(id))
 
 
 class Root(restful.Resource):
@@ -104,7 +110,9 @@ class Root(restful.Resource):
 
 api.add_resource(ComNetwork, '/com')
 api.add_resource(BossNetwork, '/boss')
-api.add_resource(Query, '/query')
+api.add_resource(Queryboss, '/query/boss/<string:boss>')
+api.add_resource(Querycom, '/query/com/<string:name>')
+api.add_resource(Queryboard, '/query/board/<string:id>')
 api.add_resource(Root, '/')
 
 

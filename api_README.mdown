@@ -15,25 +15,25 @@ Return Company network with node, edge informations
 
     Output:
 
-    * node size: normalize if degree centrality
+    * node size: normalize of degree centrality
     * node color: cluster of betweeness centrality
     * link width: number of seats
 
 
 2. Query by **boss name**
 
-    Sytax:
-
-        url/com?boss=&target=
+    Sytax: url/com?boss=&target=
 
     Input:
 
-        boss: boss name
-        target: (Optional) boss target
+    * boss: boss name
+    * target: (Optional) boss target
 
     Output:
 
-        company network with node, edge informations
+    * node size: normalize of degree centrality
+    * node color: cluster of betweeness centrality
+    * link width: number of seats
 
 
 3. Query by **boards of the same company**
@@ -88,31 +88,34 @@ Return Company network with node, edge informations
 
 ## Query for else
 
-6. Query boss by similar name (in SQL: "name like '%boss%'")
+1. Query boss by similar name (in SQL: "name like '%boss%'")
 
-    Syntax:
+    Syntax: url/query/boss/<boss name>
 
-        url/query?boss=
-
-    Input:
-
-        boss: boss name
+    Input: boss name
 
     Output:
 
         dict of different group of bosses, {target: [companys]}
 
-7. Query company name and id by similar company name (in SQL: "name like '%name%'")
 
-    Syntax:
+2. Query company name and id by similar company name (in SQL: "name like '%name%'")
 
-        url/query?com=
+    Syntax: url/query/com/<company name>
 
-    Input:
-
-        com: company name
+    Input: company name
 
     Output:
 
         dict of companys, {id: name}
 
+
+3. Query board list by company id
+
+    Syntax: url/query/board/<id>
+
+    Input: id
+
+    Oouput:
+
+        board list of one company

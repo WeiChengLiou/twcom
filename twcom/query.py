@@ -129,13 +129,16 @@ def invbosskey(key):
         return key.split(u'\t')
 
 
-def get_boss(id):
+def get_boss(id, ind=False):
     # get boss list by company id
     if not hasattr(id, '__iter__'):
         id = [id]
-    for r in cn.boards.find({'id': {'$in': id},
-                             'title': {'$not': re.compile(u'.*獨立.*')},
-                             'name': {'$ne': u'缺額'}}):
+    cond = {'id': {'$in': id},
+            'name': {'$ne': u'缺額'}}
+    if not ind:
+         cond['title'] = {'$not': re.compile(u'.*獨立.*')}
+
+    for r in cn.boards.find(cond):
         yield r
 
 
@@ -453,10 +456,7 @@ def get_network_boss(name, target=None, maxlvl=None):
         cond = {'name': name, 'target': {'$in': targets}}
     else:
         cond = {'name': name, 'target': target}
-    coms, ids = [], []
-    for r in cn.bossnode.find(cond):
-        ids.extend(r['coms'])
-        coms.append(r['coms'])
+    coms = [r['coms'] for r in cn.bossnode.find(cond)]
 
     if not maxlvl:
         maxlvl = 1
