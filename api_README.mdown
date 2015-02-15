@@ -52,7 +52,7 @@ Return Company network with node, edge informations
     * link width: number of seats
 
 
-5. Query by **address of the company**
+4. Query by **address of the company**
 
     Syntax: url/com?comaddr=&maxlvl=
 
@@ -70,7 +70,7 @@ Return Company network with node, edge informations
 
 ## Boss network
 
-2. Query by **company id**
+1. Query by **company id**
 
     Syntax: url/boss?id=&maxlvl=
 
@@ -116,6 +116,6 @@ Return Company network with node, edge informations
 
     Input: id
 
-    Oouput:
+    Ouput:
 
         board list of one company
