@@ -456,11 +456,11 @@ def get_network_boss(name, target=None, maxlvl=None):
         cond = {'name': name, 'target': {'$in': targets}}
     else:
         cond = {'name': name, 'target': target}
-    coms = [r['coms'] for r in cn.bossnode.find(cond)]
+    coms = [r['coms'] for r in cn.bossnode.find(cond, {'_id': 0, 'coms': 1})]
 
     if not maxlvl:
         maxlvl = 1
-    g = get_network(ids, maxlvl=maxlvl)
+    g = get_network(list(flatten(coms)), maxlvl=maxlvl)
     fillgrp(g, coms)
     return g
 
