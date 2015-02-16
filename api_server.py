@@ -57,24 +57,24 @@ qrypars.add_argument('board', type=unicode)
 class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
-        args['maxlvl'] = min(args['maxlvl'], 3)
+        maxlvl = min(args['maxlvl'], 3)
         if args.get('id'):
             G = query.get_network(
                 args['id'],
-                maxlvl=args['maxlvl'])
+                maxlvl=maxlvl)
         elif args.get('boss'):
             G = query.get_network_boss(
                 args.get('boss'),
                 target=args.get('target'),
-                maxlvl=args['maxlvl'])
+                maxlvl=maxlvl)
         elif args.get('comboss'):
             G = query.get_network_comboss(
                 args.get('comboss'),
-                maxlvl=args['maxlvl'])
+                maxlvl=maxlvl)
         elif args.get('comaddr'):
             G = query.get_network_comaddr(
                 args.get('comaddr'),
-                maxlvl=args['maxlvl'])
+                maxlvl=maxlvl)
 
         return query.exp_company(G)
 

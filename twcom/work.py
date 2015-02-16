@@ -28,6 +28,10 @@ def take(li, n):
         yield x
 
 
+def liget(li, key, default):
+    return [r.get(key, default) for r in li]
+
+
 def getdf(ret):
     return pd.DataFrame(list(ret))
 
