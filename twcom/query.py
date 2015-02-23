@@ -409,7 +409,7 @@ w2 = u'\u202c'
 
 def queryboss(name):
     name = name.replace(w2, u'')
-    ret = list(cn.bossnode.find({'name': name}, {'_id': 0}))
+    ret = list(cn.bossnode.find({'name': re.compile(name)}, {'_id': 0}))
     ids = list(flatten([r['coms'] for r in ret]))
     dic = getnamedic(ids)
     dic = {r['target']: [dic[k] for k in r['coms']] for r in ret}
