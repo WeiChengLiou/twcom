@@ -3,6 +3,10 @@
 
 import re
 from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
+from bson.objectid import ObjectId
+from pdb import set_trace
+from traceback import print_exc
 import logging
 import yaml
 from os.path import exists
@@ -25,13 +29,13 @@ logger.addHandler(handler)
 
 def init(db):
     "init mongodb db class"
-    pwdfi = '../pwd.yaml'
+    pwdfi = '../pwd1.yaml'
     if not exists(pwdfi):
         pwdfi = 'pwd.example.yaml'
     dic = yaml.load(open(pwdfi))
     uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
-    client = MongoClient(uri)
-    return eval('client.{0}'.format(db))
+    return MongoClient(uri)[db]
+
 
 CONFIG = yaml.load(open('config.yaml'))
 cn = init(CONFIG['db'])
@@ -97,3 +101,13 @@ def badstatus(cn):
         {'$or': [{'status': {'$regex': u'停業'}},
          {'status': {'$regex': u'解散'}}]}).distinct('status'))
     return status
+
+
+def insitem(cn, coll, item):
+    try:
+        cn[coll].insert(item)
+    except DuplicateKeyError:
+        """"""
+    except:
+        print_exc()
+        set_trace()

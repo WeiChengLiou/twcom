@@ -123,7 +123,7 @@ class ComItem(object):
         elif key in ('capital', 'realcap'):
             try:
                 v1 = v.replace(',', '')
-                val = int(v1) if v1 != '' else 0
+                val = float(v1) if v1 != '' else 0
                 self.__dict__[key] = val
                 return
             except:

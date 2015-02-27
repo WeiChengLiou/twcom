@@ -8,8 +8,6 @@ from collections import defaultdict
 import itertools as it
 from work import *
 from utils import *
-#import multiprocessing as mp
-#pool = mp.Pool(processes=2)
 
 
 bad_boards = bad_board(cn)
