@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from bson.objectid import ObjectId
 from utils import *
 from work import *
 import numpy as np
@@ -425,11 +426,12 @@ w2 = u'\u202c'
 
 def queryboss(name):
     name = name.replace(w2, u'')
-    ret = list(cn.bossnode.find({'name': re.compile(name)}, {'_id': 0}))
+    ret = list(cn.bossnode.find({'name': re.compile(name)}, {'target': 0}))
     ids = set(flatten([r['coms'] for r in ret]))
     dic = getnamedic(tuple(ids))
     for r in ret:
         r['coms'] = map(lambda x: dic.get(x, x), r['coms'])
+        r['_id'] = str(r['_id'])
     return ret
 
 
@@ -461,22 +463,23 @@ def get_network_names(names, maxlvl=None):
     return get_network(ids, maxlvl=maxlvl)
 
 
-def get_network_boss(name, target=None, **kwargs):
+def get_network_boss(name=None, target=None, **kwargs):
     # get network by boss name
     # input:
     #   name: unicode, boss name
     # output: DiGraph
+    print name, target
 
-    name = name.replace(w2, u'')
     if not target:
+        name = name.replace(w2, u'')
         bosses = list(map(invbosskey, getbosslike(name)))
         names, targets = zip(*bosses)
         cond = {'name': name, 'target': {'$in': targets}}
     else:
-        cond = {'name': name, 'target': target}
+        cond = {'_id': ObjectId(target)}
     coms = [r['coms'] for r in cn.bossnode.find(cond, {'_id': 0, 'coms': 1})]
 
-    g = get_network(list(flatten(coms)), **kwargs)
+    g = get_network(tuple(set(flatten(coms))), **kwargs)
     fillgrp(g, coms)
     return g
 

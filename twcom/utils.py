@@ -4,7 +4,6 @@
 import re
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
-from bson.objectid import ObjectId
 from pdb import set_trace
 from traceback import print_exc
 import logging

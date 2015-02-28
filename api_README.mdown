@@ -28,8 +28,10 @@ Return Company network with node, edge informations
     Input:
 
     * boss: boss name
-    * target: (Optional) boss target
+    * target: (Optional) boss ONLY id
     * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
+
+    當指定 target 參數後，不需要指定 boss 參數
 
     Output:
 
@@ -130,7 +132,7 @@ twcom  capital   財團/社團法人資本額排名
 
     Output:
 
-        list of dict {name, target, companys}
+        list of dict {name, _id, companys}
 
 
 2. Query company name and id by similar company name (in SQL: "name like '%name%'")

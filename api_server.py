@@ -73,9 +73,9 @@ class ComNetwork(restful.Resource):
                 args['id'],
                 maxlvl=maxlvl,
                 lnunit=lnunit)
-        elif args.get('boss'):
+        elif (args.get('boss') or args.get('target')):
             G = query.get_network_boss(
-                args.get('boss'),
+                name=args.get('boss'),
                 target=args.get('target'),
                 maxlvl=maxlvl,
                 lnunit=lnunit)
