@@ -226,6 +226,14 @@ def setnode(G, col, dic):
             G.node[k][col] = v
 
 
+def setedge_width(G, fun):
+    for x in G.edges():
+        y = G.get_edge_data(*x)
+        if y.get('width'):
+            print y['width'], fun(y['width'])
+            y['width'] = fun(y['width'])
+
+
 def translate(vdic, dstlim, vlim=None):
     # translate vdic's value in dstlim scale
     vs = vdic.values()
@@ -286,6 +294,10 @@ def exp_company(G, **kwargs):
     if any([('group' not in dic) for dic in G.node.values()]):
         output = cluster(nx.betweenness_centrality(G1))
         setnode(G, 'group', output)
+
+    #print keargs.get('lineunit')
+    #if kwargs.get('lineunit') == 'seatratio':
+    #    setedge_width(G, lambda x: float(x)/10.)
 
     return opt.exp_graph(G, **kwargs)
 
@@ -447,7 +459,7 @@ def get_network_names(names, maxlvl=None):
     return get_network(ids, maxlvl=maxlvl)
 
 
-def get_network_boss(name, target=None, maxlvl=None):
+def get_network_boss(name, target=None, **kwargs):
     # get network by boss name
     # input:
     #   name: unicode, boss name
@@ -462,14 +474,12 @@ def get_network_boss(name, target=None, maxlvl=None):
         cond = {'name': name, 'target': target}
     coms = [r['coms'] for r in cn.bossnode.find(cond, {'_id': 0, 'coms': 1})]
 
-    if not maxlvl:
-        maxlvl = 1
-    g = get_network(list(flatten(coms)), maxlvl=maxlvl)
+    g = get_network(list(flatten(coms)), **kwargs)
     fillgrp(g, coms)
     return g
 
 
-def get_network_comboss(id, maxlvl=None):
+def get_network_comboss(id, **kwargs):
     # get network by boss in the same company
     bosses = [bosskey(r['name'], r['target'])
               for r in cn.boards.find({'id': id})]
@@ -481,23 +491,19 @@ def get_network_comboss(id, maxlvl=None):
         if key in bosses:
             ids.extend(r['coms'])
 
-    if not maxlvl:
-        maxlvl = 1
-    g = get_network(ids, maxlvl=maxlvl)
+    g = get_network(ids, **kwargs)
     fillgrp(g, [ids])
     return g
 
 
-def get_network_comaddr(id, maxlvl=None):
+def get_network_comaddr(id, **kwargs):
     # get network from the same addr
     addr = None
     for r in cn.cominfo.find({'id': id}):
         addr = r['addr']
 
     ids = [r['id'] for r in cn.cominfo.find({'addr': addr})]
-    if not maxlvl:
-        maxlvl = 1
-    g = get_network(ids, maxlvl=maxlvl)
+    g = get_network(ids, **kwargs)
     fillgrp(g, [ids])
     return g
 
