@@ -4,12 +4,8 @@
 from utils import *
 from work import *
 from twcom import query
-import numpy as np
-import itertools as it
 from traceback import print_exc
 from pdb import set_trace
-import re
-from collections import defaultdict
 from bson.son import SON
 import networkx as nx
 

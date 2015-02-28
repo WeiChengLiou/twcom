@@ -509,6 +509,14 @@ def get_network_comaddr(id, **kwargs):
 
 
 # }}}
+# {{{Ranking
+def getRanking(data, rankby, n):
+    ret = cn.ranking.find(
+        {'data': data, 'rankby': rankby},
+        {'ranks': {'$slice': n}, '_id': 0})
+    return ret.next()['ranks']
+
+# }}}
 
 
 if __name__ == '__main__':

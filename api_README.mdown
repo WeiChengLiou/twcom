@@ -92,6 +92,34 @@ Return Company network with node, edge informations
     * link width: number of (intersection of companys)
 
 
+## 排行榜查詢
+
+Syntax: url/rank?data=&rankby=&n=
+
+Input:
+
+    data, rankby: see next subsection "Ranking type"
+    n: The first n ranks
+
+Output:
+
+    list of ranks
+
+
+### Ranking type
+
+====== ========= =========================
+data   rankby    Description
+====== ========= =========================
+twcom  ivst      公司直接投資數排名
+twcom  sons      公司子孫數排名
+twcom  bosscoms  董監事任職公司數排名
+twcom  inst      董監事擔任法人代表數排名
+twcom  capital   公司資本額排名
+twcom  capital   財團/社團法人資本額排名
+====== ========= =========================
+
+
 ## Query for else
 
 1. Query boss by similar name (in SQL: "name like '%boss%'")

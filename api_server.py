@@ -35,6 +35,7 @@ def setlogger():
 setlogger()
 app = Flask(__name__)
 api = restful.Api(app)
+
 compars = reqparse.RequestParser()
 compars.add_argument('id', type=unicode)
 compars.add_argument('boss', type=unicode)
@@ -42,17 +43,21 @@ compars.add_argument('target', type=unicode)
 compars.add_argument('comboss', type=unicode)
 compars.add_argument('comaddr', type=unicode)
 compars.add_argument('maxlvl', type=int, default=1)
-compars.add_argument('lineunit', type=str)
+compars.add_argument('lineunit', type=unicode)
 
 bospars = reqparse.RequestParser()
 bospars.add_argument('name', type=unicode)
 bospars.add_argument('id', type=unicode)
 
-
 qrypars = reqparse.RequestParser()
 qrypars.add_argument('boss', type=unicode)
 qrypars.add_argument('com', type=unicode)
 qrypars.add_argument('board', type=unicode)
+
+rankpars = reqparse.RequestParser()
+rankpars.add_argument('data', type=unicode)
+rankpars.add_argument('rankby', type=unicode)
+rankpars.add_argument('n', type=int)
 
 
 class ComNetwork(restful.Resource):
@@ -112,6 +117,14 @@ class Query(restful.Resource):
         return json.dumps(dic)
 
 
+class Rank(restful.Resource):
+    def get(self):
+        args = rankpars.parse_args()
+        nlim = min(args['n'], 2000)
+        return json.dumps(query.getRanking(
+            args['data'], args['rankby'], nlim))
+
+
 class Root(restful.Resource):
     def get(self):
         return 'ok'
@@ -120,6 +133,7 @@ class Root(restful.Resource):
 api.add_resource(ComNetwork, '/com')
 api.add_resource(BossNetwork, '/boss')
 api.add_resource(Query, '/query')
+api.add_resource(Rank, '/rank')
 api.add_resource(Root, '/')
 
 
