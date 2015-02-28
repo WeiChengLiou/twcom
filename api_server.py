@@ -111,8 +111,9 @@ class Query(restful.Resource):
                 {r['id']: r['name']
                  for r in query.getidlike(args.get('com'))})
         elif args.get('board'):
-            dic = tuple(query.get_boss(args.get('board'),
-                        ind=True, no_id=True))
+            dic = tuple(query.get_boss(
+                args.get('board'),
+                ind=True))
 
         return json.dumps(dic)
 

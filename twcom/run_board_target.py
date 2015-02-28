@@ -227,7 +227,11 @@ def insComnetBoss():
     BossId = namedtuple('BossId', ('name', 'id'))
     dic = [BossId(**x) for x in cn.boards.find({},
            {'_id': 0, 'id': 1, 'name': 1}).sort('id')]
-    ret = tuple((k, set(g)) for k, g in it.groupby(dic, lambda x: x.id))
+    ret = tuple((k, sorted(set(g))) for k, g in it.groupby(dic, lambda x: x.id))
+    idset = [x[0] for x in ret]
+
+    #for ids in chunk(idset,100):
+
 
     for x, y in it.combinations(ret, 2):
         cnt = len(x[1].intersection(y[1]))
