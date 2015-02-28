@@ -130,7 +130,7 @@ twcom  capital   財團/社團法人資本額排名
 
     Output:
 
-        dict of different group of bosses, {target: [companys]}
+        list of dict {name, target, companys}
 
 
 2. Query company name and id by similar company name (in SQL: "name like '%name%'")

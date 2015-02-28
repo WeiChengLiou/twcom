@@ -4,13 +4,20 @@
 from groups import groups
 from pdb import set_trace
 from traceback import print_exc
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import itertools as it
 from work import *
 from utils import *
 
 
 bad_boards = bad_board(cn)
+
+
+def getnameall(source):
+    return cn.boards.find(
+        {'name': {'$nin': bad_boards},
+         'source': source}).\
+        distinct('name')
 
 
 def update_boss():
@@ -20,10 +27,7 @@ def update_boss():
 
     dup_bossname(idsall)
 
-    names = cn.boards.find(
-        {'name': {'$nin': bad_boards},
-         'source': 'twcom'}).\
-        distinct('name')
+    names = getnameall('twcom')
 
     run_upd_boards(names)
 
@@ -216,6 +220,24 @@ def reset_bossnode(names):
 
     if repli != []:
         reset_bossnodes(repli)
+
+
+def insComnetBoss():
+    """ Define company network by boss name """
+    BossId = namedtuple('BossId', ('name', 'id'))
+    dic = [BossId(**x) for x in cn.boards.find({},
+           {'_id': 0, 'id': 1, 'name': 1}).sort('id')]
+    ret = tuple((k, set(g)) for k, g in it.groupby(dic, lambda x: x.id))
+
+    for x, y in it.combinations(ret, 2):
+        cnt = len(x[1].intersection(y[1]))
+        tot = len(x[1] | y[1])
+        if cnt > 0:
+            dic = {'src': x[0],
+                   'dst': y[0],
+                   'cnt': cnt,
+                   'ratio': float(cnt) / tot}
+            cn.ComnetBoss.insert(dic)
 
 
 def getcoms2():

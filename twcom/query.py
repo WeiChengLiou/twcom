@@ -5,6 +5,7 @@ from utils import *
 from work import *
 import numpy as np
 import itertools as it
+import operator as op
 import networkx as nx
 from traceback import print_exc
 from pdb import set_trace
@@ -425,10 +426,11 @@ w2 = u'\u202c'
 def queryboss(name):
     name = name.replace(w2, u'')
     ret = list(cn.bossnode.find({'name': re.compile(name)}, {'_id': 0}))
-    ids = list(flatten([r['coms'] for r in ret]))
-    dic = getnamedic(ids)
-    dic = {r['target']: [dic[k] for k in r['coms']] for r in ret}
-    return dic
+    ids = set(flatten([r['coms'] for r in ret]))
+    dic = getnamedic(tuple(ids))
+    for r in ret:
+        r['coms'] = map(lambda x: dic.get(x, x), r['coms'])
+    return ret
 
 
 def get_bossnet_boss(names, target=None, maxlvl=1):

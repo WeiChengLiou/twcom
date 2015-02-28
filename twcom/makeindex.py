@@ -95,7 +95,7 @@ class ComItem(object):
                     errid[self.id] = (self.id, kv[1])
                 pdb.set_trace()
             else:
-                self.process(key, v)
+                self.process(key, v.strip())
 
     def process(self, key, v):
         if key == 'name':
