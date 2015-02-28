@@ -98,6 +98,16 @@ def dicprint(args, **kwargs):
         lprint(k, v, sep=sep)
 
 
+def pdic(dic, space=0):
+    if isinstance(dic, dict):
+        li = [u'\n']
+        for k, v in dic.iteritems():
+            li.append(u'{0}{1}:{2}'.format(u' '*space, k, pdic(v, space+4)))
+        return u''.join(li)
+    else:
+        return u'{0}{1}\n'.format(u' '*space, dic)
+
+
 def replaces(str0, words):
     return reduce(lambda x, y: x.replace(y, u''), words, str0)
 

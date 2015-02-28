@@ -227,10 +227,11 @@ def insComnetBoss():
     BossId = namedtuple('BossId', ('name', 'id'))
     dic = [BossId(**x) for x in cn.boards.find({},
            {'_id': 0, 'id': 1, 'name': 1}).sort('id')]
-    ret = tuple((k, sorted(set(g))) for k, g in it.groupby(dic, lambda x: x.id))
-    idset = [x[0] for x in ret]
+    dic = {k: sorted(set(g)) for k, g in it.groupby(dic, lambda x: x.id)}
 
-    #for ids in chunk(idset,100):
+    for ids in chunk(dic.keys(), 100):
+        names = tuple(set(flatten([dic[k] for k in ids])))
+
 
 
     for x, y in it.combinations(ret, 2):
@@ -314,6 +315,27 @@ def upd_bossedge(ids):
             bossdic[r['id']].append(key0)
         else:
             inskey(key0, key1)
+
+
+def fixboardtarget():
+    ret = cn.boards.find()
+    idss = set()
+    [idss.add(x['id']) for x in ret]
+    map(chgtarget, chunk(tuple(idss), 1000))
+
+
+def chgtarget(ids):
+    ret = {(r['name'], r['target']): r for r in cn.bossnode.find({'coms': {'$in': ids}})}
+    brds = cn.boards.find({'id': {'$in': ids}})
+    for brd in brds:
+        key = brd['name'], brd['target']
+        r = ret.get(key)
+        if r:
+            brd['target'] = r['_id']
+        else:
+            brd['target'] = None
+        cn.boards.save(brd)
+    print brd['id'], brd['name'], brd['target']
 
 
 if __name__ == '__main__':
