@@ -42,6 +42,7 @@ compars.add_argument('target', type=unicode)
 compars.add_argument('comboss', type=unicode)
 compars.add_argument('comaddr', type=unicode)
 compars.add_argument('maxlvl', type=int, default=1)
+compars.add_argument('lineunit', type=str)
 
 bospars = reqparse.RequestParser()
 bospars.add_argument('name', type=unicode)
@@ -58,23 +59,31 @@ class ComNetwork(restful.Resource):
     def get(self):
         args = compars.parse_args()
         maxlvl = min(args['maxlvl'], 3)
+        lnunit = args['lineunit']
+        if (lnunit != 'seat') and (lnunit != 'seatratio'):
+            lnunit = 'seat'
+
         if args.get('id'):
             G = query.get_network(
                 args['id'],
-                maxlvl=maxlvl)
+                maxlvl=maxlvl,
+                lnunit=lnunit)
         elif args.get('boss'):
             G = query.get_network_boss(
                 args.get('boss'),
                 target=args.get('target'),
-                maxlvl=maxlvl)
+                maxlvl=maxlvl,
+                lnunit=lnunit)
         elif args.get('comboss'):
             G = query.get_network_comboss(
                 args.get('comboss'),
-                maxlvl=maxlvl)
+                maxlvl=maxlvl,
+                lnunit=lnunit)
         elif args.get('comaddr'):
             G = query.get_network_comaddr(
                 args.get('comaddr'),
-                maxlvl=maxlvl)
+                maxlvl=maxlvl,
+                lnunit=lnunit)
 
         return query.exp_company(G)
 

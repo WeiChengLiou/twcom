@@ -6,12 +6,13 @@ Return Company network with node, edge informations
 
 1. Query by **company id**
 
-    Syntax: url/com?id=&maxlvl=
+    Syntax: url/com?id=&maxlvl=&lineunit=
 
     Input:
 
     * id: company id
-    * maxlvl: max levels
+    * maxlvl: (Optional) max levels
+    * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
 
     Output:
 
@@ -22,12 +23,13 @@ Return Company network with node, edge informations
 
 2. Query by **boss name**
 
-    Sytax: url/com?boss=&target=
+    Sytax: url/com?boss=&target=&lineunit=
 
     Input:
 
     * boss: boss name
     * target: (Optional) boss target
+    * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
 
     Output:
 
@@ -38,28 +40,32 @@ Return Company network with node, edge informations
 
 3. Query by **boards of the same company**
 
-    Syntax: url/com?comboss=&maxlvl=
+    Syntax: url/com?comboss=&maxlvl=&lineunit=
 
     Input:
 
     * comboss: company id
-    * maxlvl: max levels
+    * maxlvl: (Optional) max levels
+    * lineunit: (Optional) line width, can be one of ['seat', 'seatratio']. Default = seat
 
     Output:
 
     * node size: normalize of degree centrality
     * node color: 各公司董監事成員中，與被查詢公司董監事重複者給定一顏色; 其餘公司另給定顏色。
-    * link width: number of seats
+    * link width: 
+        seat: number of seats,
+        seatratio: seat ratio
 
 
 4. Query by **address of the company**
 
-    Syntax: url/com?comaddr=&maxlvl=
+    Syntax: url/com?comaddr=&maxlvl=&lineunit=
 
     Input:
 
     * comaddr: company id
-    * maxlvl: max levels
+    * maxlvl: (Optional) max levels
+    * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
 
     Output:
 
@@ -77,7 +83,7 @@ Return Company network with node, edge informations
     Input:
 
     * id: company id
-    * maxlvl: max levels
+    * maxlvl: (Optional) max levels
 
     Output:
 

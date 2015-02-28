@@ -50,7 +50,7 @@ def get_boss_network(names, maxlvl=1, level=0, items=None, G=None):
     return G
 
 
-def get_network(ids, maxlvl=1, level=0, items=None, G=None):
+def get_network(ids, maxlvl=1, level=0, items=None, G=None, lnunit=None):
     # 逐級建立公司網絡圖
 
     if not hasattr(ids, '__iter__'):
@@ -64,6 +64,9 @@ def get_network(ids, maxlvl=1, level=0, items=None, G=None):
     if items is None:
         items = {id: level for id in ids}
 
+    if not lnunit:
+        lnunit = 'seat'
+
     newlvl = level + 1
     ret = cn.comivst.find({
         '$or': [{'src': {'$in': ids}},
@@ -74,7 +77,7 @@ def get_network(ids, maxlvl=1, level=0, items=None, G=None):
                 not all([x in items for x in (r['src'], r['dst'])]):
             continue
         G.add_edge(r['src'], r['dst'],
-                   {'width': r['seat']})
+                   {'width': r.get(lnunit, 1)})
 
         if r['src'] not in items:
             items[r['src']] = newlvl
@@ -86,7 +89,7 @@ def get_network(ids, maxlvl=1, level=0, items=None, G=None):
             ids1 = [key1 for key1, lvl1 in it.ifilter(
                     lambda x: lvl == x[1], items.iteritems())]
             get_network(ids1, maxlvl=maxlvl,
-                        level=lvl, items=items, G=G)
+                        level=lvl, items=items, G=G, lnunit=lnunit)
 
     return G
 
@@ -427,6 +430,7 @@ def get_bossnet_boss(names, target=None, maxlvl=1):
 
 
 def get_bossesnet(ids, maxlvl):
+    raise Exception('Unknown function, maybe should be deprecated!')
     # get boss network from company ids
     # fill boss info for export
     names = list(getcomboss(ids))
