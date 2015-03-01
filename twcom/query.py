@@ -107,7 +107,7 @@ def getbosslike(names):
     for name in names:
         ret = cn.bossnode.find({'name': name})
         for r in ret:
-            yield bosskey(r['name'], r['target'])
+            yield r['target']
 
 
 def getidlike(names):
@@ -436,6 +436,7 @@ def queryboss(name):
 
 def get_bossnet_boss(names, target=None, maxlvl=1):
     # get boss network from boss name
+    raise Exception('Unknown function, maybe should be deprecated!')
     if not target:
         names = list(getbosslike(names))
     else:
@@ -471,9 +472,8 @@ def get_network_boss(name=None, target=None, **kwargs):
 
     if not target:
         name = name.replace(w2, u'')
-        bosses = list(map(invbosskey, getbosslike(name)))
-        names, targets = zip(*bosses)
-        cond = {'name': name, 'target': {'$in': targets}}
+        targets = list(getbosslike(name))
+        cond = {'_id': {'$in': targets}}
     else:
         cond = {'_id': ObjectId(target)}
     coms = [r['coms'] for r in cn.bossnode.find(cond, {'_id': 0, 'coms': 1})]
@@ -485,15 +485,10 @@ def get_network_boss(name=None, target=None, **kwargs):
 
 def get_network_comboss(id, **kwargs):
     # get network by boss in the same company
-    bosses = [bosskey(r['name'], r['target'])
-              for r in cn.boards.find({'id': id})]
-    names, targets = zip(*map(invbosskey, bosses))
+    targets = [r['target'] for r in cn.boards.find({'id': id})]
     ids = []
-    for r in cn.bossnode.find({'name': {'$in': names},
-                               'target': {'$in': targets}}):
-        key = bosskey(r['name'], r['target'])
-        if key in bosses:
-            ids.extend(r['coms'])
+    for r in cn.bossnode.find({'_id': {'$in': targets}}):
+        ids.extend(r['coms'])
 
     g = get_network(ids, **kwargs)
     fillgrp(g, [ids])

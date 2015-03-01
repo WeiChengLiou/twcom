@@ -99,10 +99,17 @@ def dicprint(args, **kwargs):
 
 
 def pdic(dic, space=0):
+    blank = u' ' * (1+space)
     if isinstance(dic, dict):
-        li = [u'\n']
+        li = [u'{\n']
         for k, v in dic.iteritems():
-            li.append(u'{0}{1}:{2}'.format(u' '*space, k, pdic(v, space+4)))
+            li.append(u'{0}{1}:{2}'.format(blank, k, pdic(v, space+1)))
+        li.append(blank + u'}\n')
+        return u''.join(li)
+    elif hasattr(dic, '__iter__') and (not isinstance(dic, basestring)):
+        li = [u'[']
+        li.append(u','.join(map(pdic, dic)))
+        li.append(u']\n')
         return u''.join(li)
     else:
         return u'{0}{1}\n'.format(u' '*space, dic)

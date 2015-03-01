@@ -154,4 +154,4 @@ twcom  capital   財團/社團法人資本額排名
 
     Ouput:
 
-        board list of one company
+        list of dicts, boss informations.
