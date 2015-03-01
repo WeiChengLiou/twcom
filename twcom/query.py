@@ -143,8 +143,8 @@ def get_boss(id, ind=False):
     if not ind:
         cond['title'] = {'$not': re.compile(u'.*獨立.*')}
 
-    for r in cn.boards.find(cond, {'target': 0}):
-        r['_id'] = str(r['_id'])
+    for r in cn.boards.find(cond, {'_id': 0}):
+        r['target'] = str(r['target'])
         yield r
 
 

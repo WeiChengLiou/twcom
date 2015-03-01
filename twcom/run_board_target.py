@@ -222,29 +222,6 @@ def reset_bossnode(names):
         reset_bossnodes(repli)
 
 
-def insComnetBoss():
-    """ Define company network by boss name """
-    BossId = namedtuple('BossId', ('name', 'id'))
-    dic = [BossId(**x) for x in cn.boards.find({},
-           {'_id': 0, 'id': 1, 'name': 1}).sort('id')]
-    dic = {k: sorted(set(g)) for k, g in it.groupby(dic, lambda x: x.id)}
-
-    for ids in chunk(dic.keys(), 100):
-        names = tuple(set(flatten([dic[k] for k in ids])))
-
-
-
-    for x, y in it.combinations(ret, 2):
-        cnt = len(x[1].intersection(y[1]))
-        tot = len(x[1] | y[1])
-        if cnt > 0:
-            dic = {'src': x[0],
-                   'dst': y[0],
-                   'cnt': cnt,
-                   'ratio': float(cnt) / tot}
-            cn.ComnetBoss.insert(dic)
-
-
 def getcoms2():
     """get coms id"""
     condic = {'boardcnt': {'$gt': 1}, 'status': {'$regex': u'核准'}}
@@ -336,6 +313,29 @@ def chgtarget(ids):
             brd['target'] = None
         cn.boards.save(brd)
     print brd['id'], brd['name'], brd['target']
+
+
+def setComnetBoss():
+    """ Define company network by boss name """
+    ret = cn.boards.find()
+    idss = set()
+    [idss.add(x['id']) for x in ret]
+    dic = defaultdict(int)
+    dic = reduce(lambda dic, x: insComnetBoss(x, dic), chunk(tuple(idss), 1000), dic)
+
+
+def insComnetBoss(ids, dic):
+    ret = cn.boards.find(
+        {'id': {'in': ids}, 'name': {'$nin': bad_boards}},
+        {'_id': 0, 'name': 1, 'id': 1}
+        ).sort('name')
+    for k, v in it.groupby(ret, lambda x: x['name']):
+        if len(v) == 1:
+            continue
+        for v1, v2 in it.combinations(v, 2):
+            key = sorted([v1, v2])
+            dic[key] += 1
+    return dic
 
 
 if __name__ == '__main__':
