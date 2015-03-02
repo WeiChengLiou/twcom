@@ -5,6 +5,7 @@ from groups import groups
 from pdb import set_trace
 from traceback import print_exc
 from collections import defaultdict, namedtuple
+import cPickle
 import itertools as it
 from work import *
 from utils import *
@@ -324,18 +325,45 @@ def setComnetBoss():
     dic = reduce(lambda dic, x: insComnetBoss(x, dic), chunk(tuple(idss), 1000), dic)
 
 
-def insComnetBoss(ids, dic):
+from datetime import datetime
+def insComnetBoss():
+    cn.ComnetBoss.drop()
+
+    names = defaultdict(list)
+    ids = defaultdict(set)
     ret = cn.boards.find(
-        {'id': {'in': ids}, 'name': {'$nin': bad_boards}},
-        {'_id': 0, 'name': 1, 'id': 1}
-        ).sort('name')
-    for k, v in it.groupby(ret, lambda x: x['name']):
-        if len(v) == 1:
-            continue
+        {'name': {'$nin': bad_boards}},
+        {'_id': 0, 'name': 1, 'id': 1})
+    fun = lambda x, y: names[x].append(y)
+    [fun(r['name'], r['id']) for r in ret]
+    ret = cn.boards.find(
+        {'name': {'$nin': bad_boards}},
+        {'_id': 0, 'name': 1, 'id': 1})
+    fun1 = lambda x, y: ids[x].add(y)
+    [fun1(r['id'], r['name']) for r in ret]
+
+    cnt = 0
+    dic = defaultdict(int)
+    for k, v in names.iteritems():
+        # if len(v) == 1:
+        #     continue
         for v1, v2 in it.combinations(v, 2):
-            key = sorted([v1, v2])
-            dic[key] += 1
-    return dic
+            key = tuple(sorted([v1, v2]))
+            item = dic.setdefault(key, {'intr': 0, 'union': 0})
+            item['intr'] += 1
+        cnt += 1
+
+    print 'unioning', datetime.now()
+    for ks, v in dic.iteritems():
+        k1, k2 = ks
+        v['union'] = len(ids[k1] | ids[k2])
+        if v['union'] == 0:
+            set_trace()
+        v['jaccard'] = v['intr'] / v['union']
+        v['conn'] = ks
+
+    cn.ComnetBoss.insert(dic.values())
+    print 'unioned', datetime.now()
 
 
 if __name__ == '__main__':
