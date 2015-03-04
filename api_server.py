@@ -89,6 +89,9 @@ class ComNetwork(restful.Resource):
                 args.get('comaddr'),
                 maxlvl=maxlvl,
                 lnunit=lnunit)
+        else:
+            print args
+            raise Exception('Unknown parameter')
 
         return query.exp_company(G)
 

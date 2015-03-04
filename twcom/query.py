@@ -55,7 +55,7 @@ def get_boss_network_old(names, maxlvl=1, level=0, items=None, G=None):
 def get_boss_network(**kwargs):
     # 逐級建立董監事網絡圖
 
-    if 'name' in kwargs:
+    if kwargs.get('names'):
         targets = getbosslike(kwargs.get('name', u''))
     else:
         targets = kwargs.get('target', [])

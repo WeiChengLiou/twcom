@@ -4,6 +4,7 @@
 import requests
 
 site = u'http://localhost:4000/'
+#site = u'http://dataing.pw/'
 urls = [
     u'com?id=03064421',
     u'com?boss=王雪紅',
