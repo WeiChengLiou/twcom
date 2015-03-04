@@ -100,13 +100,13 @@ def dicprint(args, **kwargs):
 
 def pdic(dic, space=0):
     blank = u' ' * (1+space)
-    if isinstance(dic, dict):
+    if isinstance(dic, dict) and (len(dic) > 0):
         li = [u'{\n']
         for k, v in dic.iteritems():
             li.append(u'{0}{1}:{2}'.format(blank, k, pdic(v, space+1)))
         li.append(blank + u'}\n')
         return u''.join(li)
-    elif hasattr(dic, '__iter__') and (not isinstance(dic, basestring)):
+    elif hasattr(dic, '__iter__') and (not isinstance(dic, basestring)) and (len(dic) > 0):
         li = [u'[']
         li.append(u','.join(map(pdic, dic)))
         li.append(u']\n')

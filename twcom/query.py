@@ -16,7 +16,7 @@ from vis import output as opt
 
 
 # Basic{{{
-def get_boss_network(names, maxlvl=1, level=0, items=None, G=None):
+def get_boss_network_old(names, maxlvl=1, level=0, items=None, G=None):
     # 逐級建立董監事網絡圖
 
     if not hasattr(names, '__iter__'):
@@ -47,9 +47,92 @@ def get_boss_network(names, maxlvl=1, level=0, items=None, G=None):
         for lvl in xrange(1, maxlvl+1):
             ids1 = [key1 for key1, lvl1 in it.ifilter(
                     lambda x: lvl == x[1], items.iteritems())]
-            get_boss_network(ids1, maxlvl=maxlvl,
+            get_boss_network_old(ids1, maxlvl=maxlvl,
                              level=lvl, items=items, G=G)
     return G
+
+
+def get_boss_network(**kwargs):
+    # 逐級建立董監事網絡圖
+
+    if 'name' in kwargs:
+        targets = getbosslike(kwargs.get('name', u''))
+    else:
+        targets = kwargs.get('target', [])
+        if not hasattr(targets, '__iter__'):
+            targets = [targets]
+        if isinstance(targets[0], str):
+            targets = map(ObjectId, targets)
+
+    G = kwargs.setdefault('G', nx.Graph())
+    comdic = kwargs.setdefault('comdic', {})
+    maxlvl = kwargs.setdefault('maxlvl', 1)
+    namedic = kwargs.setdefault('namedic', {k: 0 for k in targets})
+    level = kwargs.setdefault('level', 0)
+    cn = kwargs.setdefault('cn', init('twcom'))
+    method = kwargs.setdefault('method', 0)
+    #print kwargs
+
+# 1. 給定 name 與 target，查詢相關公司
+    ret = cn.bossnode.find({
+        '_id': {'$in': targets}})
+    coms = []
+    for r in ret:
+        [coms.append(x) for x in r['coms'] if x not in comdic]
+        G.add_node(r['_id'], {'size': len(r['coms'])})
+        G.node[r['_id']].update(r)
+    [comdic.__setitem__(com, level) for com in coms]
+
+# 2. 給定相關公司後，找出同間公司的董監名單
+    if level < maxlvl:
+        ret = cn.boards.find(
+            {'id': {'$in': coms},
+             'target': {'$ne': None},
+             'source': 'twcom',
+             }).sort('id')
+        for k, rs in it.groupby(ret, lambda x: x['id']):
+            rs = tuple(rs)
+            addbossedge(G, rs, method)
+            for r in rs:
+                key = r['target']
+                if key not in namedic:
+                    namedic[key] = level + 1
+
+    if level == 0:
+        # kwargs['G'] = G
+        # kwargs['comdic'] = comdic
+        # kwargs['namedic'] = namedic
+        # kwargs['cn'] = cn
+        for lvl in xrange(1, maxlvl + 1):
+            kwargs['level'] = lvl
+            ids1 = [key1 for key1, lvl1 in it.ifilter(
+                    lambda x: lvl == x[1], namedic.iteritems())]
+            kwargs['target'] = ids1
+            get_boss_network(**kwargs)
+
+    return G
+
+
+def addbossedge(G, rs, method=0):
+    # 3. 根據不同 graph 需求，畫出同公司董監事間的 boss edge
+    def addedge(key1, key2):
+        if G.has_edge(key1, key2):
+            dic = G.get_edge_data(key1, key2)
+            dic['weight'] += 1
+        else:
+            G.add_edge(key1, key2, {'weight': 1})
+
+    if method == 0:
+        r0 = rs[0]
+        for r in rs:
+            if (r['title'] == u'董事長') or (int(r.get('no', 99) == 0)):
+                r0 = r
+                break
+        for r in it.ifilter(lambda x: x != r0, rs):
+            addedge(r0['target'], r['target'])
+    else:
+        for r1, r2 in it.combinations(rs, 2):
+            addedge(r1['target'], r2['target'])
 
 
 def get_network(ids, maxlvl=1, level=0, items=None, G=None, lnunit=None):
@@ -107,7 +190,7 @@ def getbosslike(names):
     for name in names:
         ret = cn.bossnode.find({'name': name})
         for r in ret:
-            yield r['target']
+            yield r['_id']
 
 
 def getidlike(names):
@@ -176,9 +259,9 @@ def getcomboss(ids):
     if not hasattr(ids, '__iter__'):
         ids = [ids]
 
-    ret = cn.boards.find({'id': {'$in': ids}})
+    ret = cn.boards.find({'id': {'$in': ids}, 'target': {'$ne': None}})
     for r in ret:
-        yield bosskey(r['name'], r['target'])
+        yield r['target']
 
 
 def fillgrp(g, grps):
@@ -363,33 +446,36 @@ def fill_company_info(G):
     return G
 
 
-def fill_boss_node(G, names, coms):
+def fill_boss_node(G, targets):
     # Fill boss node
-    ret = cn.bossnode.find({
-        'name': {'$in': list(names)},
-        'coms': {'$in': list(coms)}})
+    ret = cn.bossnode.find({'_id': {'$in': targets}})
     for r in ret:
-        key = bosskey(r['name'], r['target'])
-        if key in G.node:
-            node = G.node[key]
-            node['coms'] = r['coms']
-            node['name'] = r['name']
+        node = G.node[r['_id']]
+        node['coms'] = r['coms']
+        node['name'] = r['name']
+
+
+def getli(k, x):
+    if 'coms' not in x:
+        print 'Err:', k, x
+        raise Exception()
+    return x['coms']
 
 
 def fill_boss_info(G):
     # Fill boss info
-    names, ids = map(set, zip(*[x.split(u'\t') for x in G.node.keys()]))
+    targets = G.node.keys()
 
-    fill_boss_node(G, names, ids)
-    [ids.update(x['coms']) for x in G.node.values()]
+    #fill_boss_node(G, targets)
+    
+    [x.pop('_id') for x in G.node.values() if '_id' in x]
+    ids = set()
+    [ids.update(getli(k, x)) for k, x in G.node.iteritems()]
     ids = tuple(ids)
-    ret = cn.boards.find({
-        'name': {'$in': tuple(names)},
-        'id': {'$in': ids}})
+    ret = cn.boards.find({'target': {'$in': tuple(targets)}})
     dic = defaultdict(list)
     for r in ret:
-        key = bosskey(r['name'], r['target'])
-        dic[key].append((r['id'], r['title']))
+        dic[r['target']].append((r['id'], r['title']))
 
     namedic = getnamedic(ids)
     for k, v in dic.iteritems():
@@ -398,18 +484,19 @@ def fill_boss_info(G):
         node = G.node[k]
         v = sorted(v)
 
-        grpli = [k.split(u'\t')[0]]
+        grpli = [node['name']]
         for id, grp in it.groupby(v, lambda x: x[0]):
             com = namedic[id]
             grp = tuple(grp)
             if len(grp) > 1:
+                print 'Multiplicate group', node['name'], id, pdic(grp)
                 grpli.append(u'\n'.join(
                     [u'\t'.join([com, x[1]]) for x in grp
                         if x[1] != u'法人代表']
                 ))
             else:
                 grpli.append(u'\t'.join([com, grp[0][1]]))
-        node['titles'] = grpli
+        node['titles'] = grpli[1:]
         node['tooltip'] = u'\n'.join(grpli)
         node['size'] = len(node['coms'])
 
@@ -446,13 +533,10 @@ def get_bossnet_boss(names, target=None, maxlvl=1):
 
 
 def get_bossesnet(ids, maxlvl):
-    raise Exception('Unknown function, maybe should be deprecated!')
     # get boss network from company ids
     # fill boss info for export
-    names = list(getcomboss(ids))
-    G = get_boss_network(names, maxlvl=1)
-    fill_boss_info(G)
-    return G
+    targets = list(getcomboss(ids))
+    return get_boss_network(target=targets, maxlvl=1)
 
 
 def get_network_names(names, maxlvl=None):

@@ -96,8 +96,7 @@ class ComNetwork(restful.Resource):
 class BossNetwork(restful.Resource):
     def get(self):
         args = bospars.parse_args()
-        names = list(query.getcomboss(args['id']))
-        G = query.get_boss_network(names, maxlvl=1)
+        G = query.get_bossesnet(args['id'], maxlvl=1)
         return query.exp_boss(G)
 
 
