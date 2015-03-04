@@ -552,7 +552,6 @@ def get_network_boss(name=None, target=None, **kwargs):
     # input:
     #   name: unicode, boss name
     # output: DiGraph
-    print name, target
 
     if not target:
         name = name.replace(w2, u'')
