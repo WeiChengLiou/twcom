@@ -107,8 +107,9 @@ def get_boss_network(**kwargs):
             kwargs['level'] = lvl
             ids1 = [key1 for key1, lvl1 in it.ifilter(
                     lambda x: lvl == x[1], namedic.iteritems())]
-            kwargs['target'] = ids1
-            get_boss_network(**kwargs)
+            if ids1:
+                kwargs['target'] = ids1
+                get_boss_network(**kwargs)
 
     return G
 
