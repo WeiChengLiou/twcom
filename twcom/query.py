@@ -330,7 +330,7 @@ def translate(vdic, dstlim, vlim=None):
 
     rngd = float(dstlim[1] - dstlim[0])
     rngv = float(vmax - vmin)
-    r = rngd / rngv
+    r = rngd / rngv if rngv > 0 else 0.
     return {k: (dstlim[0] + r * float(v - vmin)) for k, v in vdic.iteritems()}
 
 

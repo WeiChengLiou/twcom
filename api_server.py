@@ -116,6 +116,9 @@ class Query(restful.Resource):
             dic = tuple(query.get_boss(
                 args.get('board'),
                 ind=True))
+        else:
+            print args
+            raise Exception('Unknown parameter')
 
         return json.dumps(dic)
 
