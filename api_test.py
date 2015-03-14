@@ -34,6 +34,7 @@ def test(url0):
     print url.encode('utf8')
     req = requests.get(url)
     try:
+        print req.text[:1000]
         return json.loads(req.json())
     except:
         print_exc()

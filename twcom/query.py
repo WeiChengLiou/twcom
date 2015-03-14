@@ -48,7 +48,7 @@ def get_boss_network_old(names, maxlvl=1, level=0, items=None, G=None):
             ids1 = [key1 for key1, lvl1 in it.ifilter(
                     lambda x: lvl == x[1], items.iteritems())]
             get_boss_network_old(ids1, maxlvl=maxlvl,
-                             level=lvl, items=items, G=G)
+                                 level=lvl, items=items, G=G)
     return G
 
 
@@ -99,10 +99,6 @@ def get_boss_network(**kwargs):
                     namedic[key] = level + 1
 
     if level == 0:
-        # kwargs['G'] = G
-        # kwargs['comdic'] = comdic
-        # kwargs['namedic'] = namedic
-        # kwargs['cn'] = cn
         for lvl in xrange(1, maxlvl + 1):
             kwargs['level'] = lvl
             ids1 = [key1 for key1, lvl1 in it.ifilter(
@@ -533,11 +529,11 @@ def get_bossnet_boss(names, target=None, maxlvl=1):
     return g
 
 
-def get_bossesnet(ids, maxlvl):
+def get_bossesnet(ids, **kwargs):
     # get boss network from company ids
     # fill boss info for export
     targets = list(getcomboss(ids))
-    return get_boss_network(target=targets, maxlvl=1)
+    return get_boss_network(target=targets, **kwargs)
 
 
 def get_network_names(names, maxlvl=None):

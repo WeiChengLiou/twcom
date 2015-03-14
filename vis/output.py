@@ -39,10 +39,8 @@ def write_d3(fi, **kwargs):
 
 def exp_graph(G, **kwargs):
     for k, v in G.node.iteritems():
-        if 'size' not in v:
-            v['size'] = 10
-        if 'group' not in v:
-            v['group'] = 0
+        v.setdefault('size', 10)
+        v.setdefault('group', 0)
 
     dicBig = {}
     dic0 = [dic for k, dic in G.node.iteritems()]
