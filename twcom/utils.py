@@ -33,6 +33,7 @@ def init(db):
         pwdfi = 'pwd.example.yaml'
     dic = yaml.load(open(pwdfi))
     uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
+    print uri
     return MongoClient(uri)[db]
 
 

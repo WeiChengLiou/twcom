@@ -91,11 +91,11 @@ class ComItem(object):
                     # 列出異常欄位名稱與公司統編
                     print u'Unknown Column:', kv[0], self.tbl, k
                     errcol[k] = (self.id, v)
-                if self.id not in errid.has_key:
+                if not errid.get(self.id):
                     errid[self.id] = (self.id, kv[1])
                 pdb.set_trace()
             else:
-                self.process(key, v.strip())
+                self.process(key, v)
 
     def process(self, key, v):
         if key == 'name':
@@ -132,7 +132,7 @@ class ComItem(object):
         elif key == 'status':
             v = replaces(v, (u' ', u'　', 'null'))
 
-        self.__dict__[key] = v
+        self.__dict__[key] = v if not isinstance(v, basestring) else v.strip()
 
     def insinfo(self):
         # 輸入公司基本資料，每間公司有自己的類別
@@ -179,7 +179,7 @@ class ComItem(object):
                         vs['repr_instid'] = '0'
                     vs['repr_inst'] = adjname.run(vs['repr_inst'])
                 else:
-                    vs[boardic[col]] = v
+                    vs[boardic[col]] = v if not isinstance(v, basestring) else v.strip()
 
             vs['name'] = adjname.run(vs['name'])
             kvs = tuple([vs[k] for k in (

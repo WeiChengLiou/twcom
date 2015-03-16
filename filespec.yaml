@@ -23,6 +23,7 @@ baseinfo:
     公司狀況: status
     股權狀況: eqtstate
     董監事名單: boards
+    停業核准(備)機關: gov
 
 indinfo:
     商業名稱: name
