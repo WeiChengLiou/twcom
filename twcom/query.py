@@ -216,16 +216,21 @@ def invbosskey(key):
 
 def get_boss(id, ind=False):
     # get boss list by company id
-    if not hasattr(id, '__iter__'):
-        id = [id]
-    cond = {'id': {'$in': id},
+    #if not hasattr(id, '__iter__'):
+    #    id = [id]
+    cond = {'id': id,
             'name': {'$ne': u'缺額'}}
     if not ind:
         cond['title'] = {'$not': re.compile(u'.*獨立.*')}
 
-    for r in cn.boards.find(cond, {'_id': 0}):
-        r['target'] = str(r['target'])
-        yield r
+    rs = [r for r in cn.boards.find(cond, {'_id': 0})]
+    [r.__setitem__('target', str(r['target'])) for r in rs]
+    dic = {'boards': rs}
+
+    ret = cn.cominfo.find({'id': id}, {'_id': 0, 'name': 1})
+    for r in ret:
+        dic['name'] = r['name']
+    return dic
 
 
 def getBoardbyID(ids):

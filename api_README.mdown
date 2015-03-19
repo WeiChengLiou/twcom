@@ -154,4 +154,6 @@ twcom  capital   財團/社團法人資本額排名
 
     Ouput:
 
-        list of dicts, boss informations.
+        {'name': company name,
+         'boards': list of dicts, boss informations.}
+        

@@ -113,9 +113,9 @@ class Query(restful.Resource):
                 {r['id']: r['name']
                  for r in query.getidlike(args.get('com'))})
         elif args.get('board'):
-            dic = tuple(query.get_boss(
+            dic = query.get_boss(
                 args.get('board'),
-                ind=True))
+                ind=True)
         else:
             print args
             raise Exception('Unknown parameter')

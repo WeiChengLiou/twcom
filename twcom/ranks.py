@@ -54,10 +54,11 @@ def loadall():
 def rankcapital(n=10, cond=None):
     if not cond:
         cond = {}
-    ret = cn.cominfo.find(cond).sort('capital', -1).limit(n)
-    df = getdf(ret)
-    df['rank'] = list(ranking(df['capital']))
-    df = df[['rank', 'name', 'id', 'capital']]
+    ret = cn.cominfo.find(cond, {'_id': 0, 'name': 1, 'id': 1, 'capital': 1}).\
+        sort('capital', -1).limit(n)
+    df = list(ret)
+    capitals = [x['capital'] for x in df]
+    [x.__setitem__('rank', c) for x, c in it.izip(df, ranking(capitals))]
     return df
 
 
@@ -120,31 +121,34 @@ def insdb(coll, name, rankby, df):
         x = args[1].to_dict()
         return x
 
-    dic['ranks'] = map(insparm, df.iterrows())
+    if isinstance(df, pd.DataFrame):
+        dic['ranks'] = map(insparm, df.iterrows())
+    else:
+        dic['ranks'] = df
     insitem(cn, coll, dic)
 
 
 def insranking():
-    coll = 'ranking'
-    cn[coll].drop()
+    # coll = 'ranking'
+    # cn[coll].drop()
 
-    df = rankivst(100000)
-    insdb(coll, 'twcom', 'ivst', df)
+    # df = rankivst(100000)
+    # insdb(coll, 'twcom', 'ivst', df)
 
-    df = ranksons(100000)
-    insdb(coll, 'twcom', 'sons', df)
+    # df = ranksons(100000)
+    # insdb(coll, 'twcom', 'sons', df)
 
-    df = rankinst(10000)
-    insdb(coll, 'twcom', 'inst', df)
+    # df = rankinst(10000)
+    # insdb(coll, 'twcom', 'inst', df)
 
-    df = rankbosscoms(10000)
-    insdb(coll, 'twcom', 'bosscoms', df)
+    # df = rankbosscoms(10000)
+    # insdb(coll, 'twcom', 'bosscoms', df)
 
     cond = {'type': {'$nin': [u'社團', u'財團']}}
-    df = rankcapital(100000, cond)
+    df = rankcapital(10000, cond)
     insdb(coll, 'twcom', 'capital', df)
 
     cond = {'type': {'$in': [u'社團', u'財團']}}
-    df = rankcapital(100000, cond)
+    df = rankcapital(10000, cond)
     insdb(coll, 'twfund', 'capital', df)
 
