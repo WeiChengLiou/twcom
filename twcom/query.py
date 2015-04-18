@@ -385,7 +385,7 @@ def exp_company(G, **kwargs):
 def showkv(id, name, info=None):
     # Prepare cominfo for tooltip
     s1 = []
-    boardcol = ('title', 'name', 'equity', 'repr_instid', 'repr_inst')
+    boardcol = ('title', 'name', 'repr_inst')
 
     if info is None:
         s1.append(u'統一編號: %s' % id)
