@@ -4,16 +4,31 @@ import pandas as pd
 import inspect
 from collections import defaultdict
 import itertools as it
+import time
 
 
-def groupdic(vals, key):
+def timeit(func):
+    def run(*args, **kwargs):
+        t0 = time.time()
+        ret = func(*args, **kwargs)
+        t1 = time.time()
+        print 'Running {0:1.4f} seconds'.format(t1 - t0)
+        return ret
+    return run
+
+
+def groupdic(iters, key):
     dic = defaultdict(list)
-    [dic[key(r)].append(r) for r in vals]
+    [dic[key(r)].append(r) for r in iters]
     return dic
 
 
 def get_funname():
     return inspect.stack()[1][3]
+
+
+def getitem(dicli, col):
+    return [r[col] for r in dicli]
 
 
 def chunk(x, n=1):
@@ -126,6 +141,23 @@ def fixname(name):
 
 def lr_intr(l, r):
     return set(l).intersection(r)
+
+
+def trytest(func):
+    def run(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            print_exc()
+            set_trace()
+    return run
+
+
+def deprecated(func):
+    def run(*args, **kwargs):
+        print func.__name__, 'is going to be deprecated.'
+        return func(*args, **kwargs)
+    return run
 
 
 if __name__ == '__main__':

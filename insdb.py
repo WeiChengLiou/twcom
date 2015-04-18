@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from twcom import makeindex
+from twcom import makeindex as mi
 from twcom import run_board_target as runbd
 from twcom import ranks
+import cPickle
+import gzip
 
-# makeindex.refresh()
-# makeindex.fixing()
-# runbd.update_boss()
 
-ranks.insranking()
+# mi.refresh()
+# mi.fixing1()
+# mi.fixing()
 
-#runbd.insComnetBoss()
+# runbd.resetComnetBoss()
+ranks.inscomrank()
+
+# runbd.test()

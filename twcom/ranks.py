@@ -29,7 +29,8 @@ def rankivst(n=10):
     # Return rankings of direct investment (n_ivst)
     # Cols: Rank, Name, id, n_ivst
     """"""
-    ret = cn.comivst.aggregate([
+    ret = db.ComBosslink.aggregate([
+        {'$match': {'ivst': 1}},
         {'$group': {'_id': '$src', 'cnt': {'$sum': 1}}},
         {'$sort': SON([('cnt', -1)])},
         ])
@@ -43,18 +44,33 @@ def rankivst(n=10):
     return df
 
 
+def rankCentrality(G):
+    df = pd.DataFrame.from_dict({
+        'closeness': nx.closeness_centrality(G),
+        'betweeness': nx.betweenness_centrality(G),
+        'degree': nx.degree_centrality(G)
+        })
+
+    df['rankclose'] = df['closeness'].rank()
+    df['rankbetween'] = df['betweeness'].rank()
+    df['rankDegree'] = df['degree'].rank()
+
+    #insdb(coll, data, 'CentralMax', df)
+    return df
+
+
 def loadall():
     g = nx.DiGraph()
-    ret = cn.comivst.find()
+    ret = db.ComBosslink.find()
     for r in ret:
-        g.add_edge(r['src'], r['dst'], size=r['seat'])
+        g.add_edge(r['src'], r['dst'], size=r['bossCnt'])
     return g
 
 
 def rankcapital(n=10, cond=None):
     if not cond:
         cond = {}
-    ret = cn.cominfo.find(cond, {'_id': 0, 'name': 1, 'id': 1, 'capital': 1}).\
+    ret = db.cominfo.find(cond, {'_id': 0, 'name': 1, 'id': 1, 'capital': 1}).\
         sort('capital', -1).limit(n)
     df = list(ret)
     capitals = [x['capital'] for x in df]
@@ -84,9 +100,9 @@ def ranksons(n=10):
 
 def rankinst(n=10):
     # 法人代表排名
-    ret = cn.boards.aggregate([
+    ret = db.boards.aggregate([
         {'$match': {'repr_inst': {'$ne': ''}}},
-        {'$group': {'_id': {'name': '$name', 'target': '$target'},
+        {'$group': {'_id': {'name': '$name'},
                     'cnt': {'$sum': 1}
                     }},
         {'$sort': SON([('cnt', -1)])},
@@ -95,21 +111,21 @@ def rankinst(n=10):
     df = getdf(ret['result'])
     df['rank'] = list(ranking(df['cnt']))
     df['name'] = [x['name'] for x in df['_id']]
-    df['target'] = [x['target'] for x in df['_id']]
-    df = df[['rank', 'name', 'target', 'cnt']]
+    #df['target'] = [x['target'] for x in df['_id']]
+    df = df[['rank', 'name', 'cnt']]
 
     return df
 
 
 def rankbosscoms(n=10):
     # 董監事代表公司數排名
-    ret = cn.bossnode.find().limit(10)
-    df = [{'name': r['name'], 'target': r['target'], 'cnt': len(r['coms'])}
+    ret = db.bossnode.find().limit(n)
+    df = [{'name': r['name'], '_id': str(r['_id']), 'cnt': len(r['orgs'])}
           for r in ret]
     df = pd.DataFrame(df)
     df.sort(columns='cnt', ascending=False, inplace=True)
     df['rank'] = list(ranking(df['cnt']))
-    df = df[['rank', 'name', 'target', 'cnt']]
+    df = df[['rank', 'name', '_id', 'cnt']]
 
     return df
 
@@ -125,17 +141,17 @@ def insdb(coll, name, rankby, df):
         dic['ranks'] = map(insparm, df.iterrows())
     else:
         dic['ranks'] = df
-    insitem(cn, coll, dic)
+    insitem(db, coll, dic)
 
 
-def insranking():
-    # coll = 'ranking'
-    # cn[coll].drop()
+def inscomrank():
+    coll = 'ranking'
+    # db[coll].drop()
 
-    # df = rankivst(100000)
+    # df = rankivst(10000)
     # insdb(coll, 'twcom', 'ivst', df)
 
-    # df = ranksons(100000)
+    # df = ranksons(10000)
     # insdb(coll, 'twcom', 'sons', df)
 
     # df = rankinst(10000)
@@ -144,6 +160,36 @@ def insranking():
     # df = rankbosscoms(10000)
     # insdb(coll, 'twcom', 'bosscoms', df)
 
+    bads = list(badstatus(db))
+    cond = {'source': 'twcom',
+            'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
+            'status': {'$nin': bads}}
+    df = rankcapital(10000, cond)
+    insdb(coll, 'twcom', 'capital', df)
+
+
+def insCentralRank(df):
+    dicAll = {'data': 'twcom', 'rankby': 'Central'}
+    li = []
+    for id, dr in df.iterrows():
+        dic = {'id': id}
+        dic.update(dr.to_dict())
+        li.append(dic)
+    dicAll['ranks'] = li
+    db['ranking'].insert(dicAll)
+
+
+def updCentralInfo(df):
+    dic = df.T.to_dict()
+    ret = db.cominfo.find()
+    for r in ret:
+        d = dic.get(r['id'])
+        if d:
+            r['central'] = d
+            db.cominfo.save(r)
+
+
+def insfundrank():
     cond = {'type': {'$nin': [u'社團', u'財團']}}
     df = rankcapital(10000, cond)
     insdb(coll, 'twcom', 'capital', df)

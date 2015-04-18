@@ -12,7 +12,7 @@ Return Company network with node, edge informations
 
     * id: company id
     * maxlvl: (Optional) max levels
-    * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
+    * lineunit: (Optional) ['bossCnt', 'bossJac', 'ivstCnt', 'ivstRatio'], default: 'ivstCnt'
 
     Output:
 
@@ -110,16 +110,16 @@ Output:
 
 ### Ranking type
 
-====== ========= =========================
+====== ========= =====================================
 data   rankby    Description
-====== ========= =========================
+====== ========= =====================================
 twcom  ivst      公司直接投資數排名
 twcom  sons      公司子孫數排名
 twcom  bosscoms  董監事任職公司數排名
 twcom  inst      董監事擔任法人代表數排名
-twcom  capital   公司資本額排名
-twcom  capital   財團/社團法人資本額排名
-====== ========= =========================
+twcom  capital   公司資本額排名 (TBD)
+twfund capital   財團/社團法人資本額排名 (TBD)
+====== ========= =====================================
 
 
 ## Query for else

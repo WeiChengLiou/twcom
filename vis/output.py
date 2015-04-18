@@ -47,12 +47,10 @@ def exp_graph(G, **kwargs):
     dicBig['nodes'] = dic0
     idx = list(G.node.keys())
     dic1 = []
-    for x in G.edge:
-        for y in G.edge[x]:
-            dic = {'source': idx.index(x), 'target': idx.index(y)}
-            for k, v in G.edge[x][y].iteritems():
-                dic[k] = v
-            dic1.append(dic)
+    for x, y in G.edges_iter():
+        dic = {'source': idx.index(x), 'target': idx.index(y)}
+        dic.update(G.get_edge_data(x, y))
+        dic1.append(dic)
     if len(dic1) > 0:
         dic1.append(dic1[0])
     dicBig['links'] = dic1

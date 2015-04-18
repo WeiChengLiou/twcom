@@ -38,20 +38,19 @@ def init(db):
 
 
 CONFIG = yaml.load(open('config.yaml'))
-cn = init(CONFIG['db'])
+db = init(CONFIG['db'])
 
 
-def badmark():
-    return u'暫缺', u'缺額', u'懸缺', u'死亡', u'補選', u'禁止',\
-        u'解任', u'請辭', u'註銷', u'停權', u'禁止', u'法拍',\
-        u'撤銷', u'當然任', u'不存在', u'臨時', u'辭職'
+badmark = u'暫缺', u'缺額', u'懸缺', u'死亡', u'補選', u'禁止',\
+    u'解任', u'請辭', u'註銷', u'停權', u'禁止', u'法拍',\
+    u'撤銷', u'當然任', u'不存在', u'臨時', u'辭職'
 
 
-def bad_board(cn):
+def bad_board(db):
     # get bad board name from badmark()
     condic = {'$or': [
-        {'name': {'$regex': key}} for key in badmark()]}
-    ret = list(cn.boards.find(condic, ['name']).distinct('name'))
+        {'name': {'$regex': key}} for key in badmark]}
+    ret = list(db.boards.find(condic, ['name']).distinct('name'))
     ret.extend([u'', u'缺'])
     return ret
 
@@ -59,7 +58,7 @@ def bad_board(cn):
 def getname(id):
     # get company name by id
     # if not found, return id
-    ret = cn.cominfo.find_one({'id': id}, ['name'])
+    ret = db.cominfo.find_one({'id': id}, ['name'])
     if ret:
         return ret['name']
     else:
@@ -72,7 +71,7 @@ def getnamedic(ids):
     # return dictionary(id, name)
     if not hasattr(ids, '__iter__'):
         ids = (ids,)
-    ret = cn.cominfo.find({'id': {'$in': ids}}, ['id', 'name'])
+    ret = db.cominfo.find({'id': {'$in': ids}}, ['id', 'name'])
     dic = {id: id for id in ids}
     for r in ret:
         dic[r['id']] = r['name']
@@ -81,7 +80,7 @@ def getnamedic(ids):
 
 def getid(name):
     # get company id by name
-    ret = cn.iddic.find_one({'name': name})
+    ret = db.iddic.find_one({'name': name})
     if ret:
         if len(ret['id']) == 1:
             return ret['id'][0]
@@ -92,22 +91,30 @@ def getid(name):
         return name
 
 
-def badstatus(cn):
+def badstatus(db):
     # return bad company status
     status = set()
-    status.update(cn.cominfo.find(
+    status.update(db.cominfo.find(
         {'status': {'$not': re.compile(u'核准')}}).distinct('status'))
-    status.update(cn.cominfo.find(
+    status.update(db.cominfo.find(
         {'$or': [{'status': {'$regex': u'停業'}},
          {'status': {'$regex': u'解散'}}]}).distinct('status'))
     return status
 
 
-def insitem(cn, coll, item):
+def getbadcoms():
+    bads = list(badstatus(db))
+    cond = {'status': {'$in': list(bads)}}
+    return set([r['id'] for r in db.cominfo.find(cond)])
+
+
+def insitem(db, coll, item):
     try:
-        cn[coll].insert(item)
+        db[coll].insert(item)
     except DuplicateKeyError:
         """"""
     except:
         print_exc()
         set_trace()
+
+

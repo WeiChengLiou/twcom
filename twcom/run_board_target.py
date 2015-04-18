@@ -1,369 +1,233 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from groups import groups
+import gzip
 from pdb import set_trace
 from traceback import print_exc
-from collections import defaultdict, namedtuple
+from collections import defaultdict, Counter
 import cPickle
 import itertools as it
 from work import *
 from utils import *
+from twcom.sparse_mat import sparse_mat as sm
+from twcom.groupset import groupset
+import networkx as nx
 
 
-bad_boards = bad_board(cn)
+
+com_cond = {'boardcnt': {'$gt': 1}, 'status': {'$regex': u'核准'}}
+tmpid = "00000016", u'王振林'
 
 
-def getnameall(source):
-    return cn.boards.find(
-        {'name': {'$nin': bad_boards},
-         'source': source}).\
-        distinct('name')
+def resetComnetBoss():
+    global bad_boards
+    bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
+
+    badcoms = getbadcoms()
+    obj, G = setComnetBoss(badcoms)
+    cPickle.dump((obj, G, badcoms), gzip.open('test1.pkl', 'wb'))
+    #obj, G, badcoms = cPickle.load(gzip.open('test.pkl', 'rb'))
+    updivst(obj, G, badcoms)
+    insComBosslink(G)
+    bossdic = makeboss(obj, G)
+    cPickle.dump((bossdic, ), gzip.open('test2.pkl', 'wb'))
+    #bossdic = cPickle.load(gzip.open('test2.pkl', 'rb'))[0]
+    updboards(obj, G, bossdic)
 
 
-def update_boss():
-    """新增董監事資料表"""
-    idsall = getcoms2()
-    logger.info('Total company count: {0}'.format(len(idsall)))
-
-    dup_bossname(idsall)
-
-    names = getnameall('twcom')
-
-    run_upd_boards(names)
-
-    dup_boardlist()
-
-    fix_bad_board()
-    run_bossnodes(names=names, reset=False)
-    run_upd_bossedges(idsall)
+def setBadBoards():
+    bad_boards = bad_board(db)
+    cPickle.dump(bad_boards, open('bad_boards.pkl', 'wb'))
 
 
-def dup_bossname(comids):
-    """save any two company's duplicate names and count by pair"""
+def test():
+    """"""
+    # badcoms = getbadcoms()
+    # obj, G = setComnetBoss(badcoms)
+    # print 'write'
+    # cPickle.dump((obj, G, badcoms), gzip.open('test.pkl', 'wb'))
+    # print 'write done'
+    # obj, G, badcoms = cPickle.load(gzip.open('test.pkl', 'rb'))
+    # cond = {'id': '84149630'}
+    # updivst(obj, G, badcoms, cond)
+
+
+def setComnetBoss(badcoms):
     print get_funname()
-    cn.dupboss.drop()
-    cn.grpconn.drop()
-
-    rets = cn.boards.find(
-        {'id': {'$in': comids},
-         'name': {'$nin': bad_boards}},
-        ['id', 'name'])
-    dic = defaultdict(set)
-    [dic[r['id']].add(r['name']) for r in rets]
-
-    #rets = getdf(cn.boards.find(
-    #    {'id': {'$in': comids},
-    #     'name': {'$nin': bad_board(cn)}},
-    #    ['id', 'name']))
-
-    for (id1, df1), (id2, df2) in it.combinations(dic.iteritems(), 2):
-        namedup = df1.intersection(df2)
-        if len(namedup) <= 1:
-            continue
-
-        dic = {
-            'source': 'twcom',
-            'com1': id1,
-            'com2': id2,
-            'names': list(namedup),
-            'cnt': len(namedup)
-            }
-        cn.dupboss.save(dic)
-
-        for name in namedup:
-            dic = {
-                'source': 'twcom',
-                'name': name,
-                'com1': id1,
-                'com2': id2}
-            cn.grpconn.save(dic)
-
-    cn.dupboss.ensure_index([
-        ('name', 1), ('com1', 1), ('com2', 2)], unique=True)
-    cn.grpconn.ensure_index(
-        [('name', 1), ('com1', 1), ('com2', 2)],
-        unique=True)
-
-
-def dup_boardlist():
-    """save any two company's duplicate names by name"""
-    print get_funname()
-    cn.grpconn.drop()
-    cn.grpconn.ensure_index(
-        [('name', 1), ('com1', 1), ('com2', 2)],
-        unique=True)
-
-    ret = cn.dupboss.find()
+    obj = sm()
+    ret = db.cominfo.find({}, {'id': 1, 'boards': 1})
     for r in ret:
-        for name in r['names']:
-            dic = {
-                'name': name,
-                'com1': r['com1'],
-                'com2': r['com2']}
-            cn.grpconn.save(dic)
-
-
-def run_upd_boards(names=None):
-    """update all boards"""
-    step = 1000
-    [upd_boards(x) for x in chunk(names, step)]
-
-
-def upd_boards(names):
-    """update boards: integrate id and repr_inst information"""
-    repli = []
-
-    """return grouped records by names"""
-    condic = {'name': {'$in': names}}
-    ret = cn.boards.find(condic)
-    dic = groupdic(ret, key=lambda r: r['name'])
-
-    for name, items in dic.iteritems():
-        if name == u'':
-            continue
-        if items is None:
-            print 'Error: ', name
-            repli.append(name)
-            continue
-
-        df = groupdic(items, key=lambda r: r['id'])
-        grps = grouping(items)
-        upd_board_target(name, df, grps)
-    return repli
-
-
-def upd_board_target(name, df, grps):
-    """update boards info"""
-    for grp in grps:
-        target = None
-        for id in grp:
-            if target is None:
-                target = id
-
-            for r in df[id]:
-                # r = df[id]
-                if r.get('target') == target:
-                    continue
-                r['target'] = target
-                if '_id' in r:
-                    cn.boards.save(r)
-                else:
-                    cn.boards.insert(r)
-
-
-def grouping(items, grps=None):
-    """grouping items with key"""
-    if grps is None:
-        grps = groups()
-    for r in items:
-        id, instid, inst = r['id'], r['repr_instid'], r['repr_inst']
-        # print id, instid, inst
-
-        if inst == '':
-            grps.add(id)
-        else:
-            if instid != 0:
-                grps.add(id, instid)
-            else:
-                grps.add(id, inst)
-    return grps
-
-
-def fix_bad_board():
-    """reset every bad names'target as id"""
-    print get_funname()
-    badnames = bad_boards
-    for r in cn.boards.find({'name': {'$in': badnames}}):
-        r['target'] = r['id']
-        cn.boards.save(r)
-
-
-def run_bossnodes(names=None, reset=False):
-    """refresh all bossnodes"""
-    print get_funname()
-    if reset:
-        cn.bossnode.drop()
-        cn.bossnode.create_index([('name', 1), ('target', 1)], unique=True)
-
-    step = 10000
-    # map(reset_bossnode, chunk(names, step))
-    map(reset_bossnode, list(chunk(names, step)))
-    print 'Final'
-
-
-def reset_bossnode(names):
-    """reset boss node by names"""
-    repli = []
-    cond = {'name': {'$in': names},
-            'source': 'twcom'}
-    ret = cn.boards.find(cond)
-    namedic = groupdic(ret, lambda r: r['name'])
-    grpdic = defaultdict(groups)
-    [grpdic[r['name']].add(r['com1'], r['com2'])
-        for r in cn.grpconn.find(cond)]
-
-    for name, items in namedic.iteritems():
-        if items is None:
-            repli.append(name)
-            continue
-
-        grps = grpdic[name]
-        grouping(items, grps)
-        upd_board_target(name, groupdic(items, lambda r: r['id']), grps)
-        # print grps
-
-        for grp in grps:
-            dic = {'name': name,
-                   'coms': list(grp)}
-            dic['target'] = dic['coms'][0]
-            cn.bossnode.insert(dic)
-
-    if repli != []:
-        reset_bossnodes(repli)
-
-
-def getcoms2():
-    """get coms id"""
-    condic = {'boardcnt': {'$gt': 1}, 'status': {'$regex': u'核准'}}
-    return cn.cominfo.find(condic, ['id']).distinct('id')
-
-
-def run_upd_bossedges(ids=None):
-    """update all boss edges"""
-    print get_funname()
-    cn.bossedge.drop()
-    cn.bossedge.ensure_index([('src', 1), ('dst', 1)])
-    map(upd_bossedge, chunk(ids, 500))
-
-
-def upd_bossedge(ids):
-    """update boss edge by ids"""
-    def getkey(r):
-        return (r['name'], r['target'] if 'target' in r else r['id'])
-
-    def inskey(key0, key1):
         try:
-            dic = {'src': u'\t'.join(key0),
-                   'dst': u'\t'.join(key1),
-                   'cnt': len(mandic[key0].intersection(mandic[key1]))}
-            cn.bossedge.insert(dic)
+            addBoard(obj, r['id'], getitem(r['boards'], 'name'))
+            # if r['id'] == tmpid[0]:
+            #     print obj.xdic[tmpid[0]], obj.ydic[tmpid[1]]
+            #     set_trace()
         except:
             print_exc()
             set_trace()
 
-    bossdic = {}
-    ret = cn.boards.find({
-        'id': {'$in': ids},
-        '$or': [{'no': '0001'}, {'title': u'董事長'}]
-        })
-    [bossdic.__setitem__(r['id'], getkey(r)) for r in ret]
+    G = nx.DiGraph()
+    for l in obj.links:
+        names = obj.intersec(*l)
+        if len(names) >= 2:
+            dic = {
+                'bossCnt': len(names),
+                'bossX': list(names),
+                'bossJac': obj.jaccard(*l),
+                'death': sum([(il in badcoms) for il in l]),
+                'ivst': 0
+                }
+            G.add_edge(l[0], l[1], dic)
+            G.add_edge(l[1], l[0], dic)
 
-    #mandic = {(r['name'], r['target']): set(r['coms']) for r in
-    #          cn.bossnode.find({'coms': {'$in': ids}})}
-    mandic = {}
-    for r in cn.bossnode.find({'coms': {'$in': ids}}):
-        mandic[(r['name'], r['target'])] = set(r['coms'])
+    return obj, G
 
-    ret = cn.boards.find({
-        'id': {'$in': ids}})
+
+def addBoard(obj, instid, names):
+    f1 = lambda name: name not in bad_boards
+    obj.add(instid, list(it.ifilter(f1, names)))
+
+
+def chkBoard(obj, instid, names, badcoms):
+    f1 = lambda name: name not in bad_boards
+    f2 = lambda name: name not in obj.xdic[instid]
+    f = lambda name: f1(name) and f2(name)
+    names = list(it.ifilter(f, names))
+    if names:
+        print u','.join(names)
+        addBoard(obj, instid, names)
+        insReprInfo(instid, names)
+
+
+def insReprInfo(id, names):
+    boards = []
+    for name in names:
+        dic = {'name': name,
+               'title': u'法人代表',
+               'repr_inst': u'',
+               'repr_instid': 0,
+               'equity': 0}
+        boards.append(dic)
+
+    chg = 0
+    ret = db.cominfo.find({'id': id})
+    try:
+        for r in ret:
+            r['boards'].extend(boards)
+            db.cominfo.save(r)
+            chg = 1
+
+        if chg == 0:
+            dic = {'id': id,
+                   'name': id,
+                   'boards': boards}
+            db.cominfo.insert(dic)
+    except:
+        print_exc()
+        set_trace()
+
+
+def updivst(obj, G, badcoms, cond=None):
+    print get_funname()
+    # update inst ivst information
+
+    def update(r):
+        id = r['id']
+        reprs = groupdic(r['boards'], lambda r1: (r1['repr_instid'], r1['repr_inst']))
+        for (instid, inst), rs in reprs.iteritems():
+            l = [instid if unicode(instid) != u'0' else inst]
+            if l[0] == u'':
+                continue
+            chkBoard(obj, l[0], getitem(rs, 'name'), badcoms)
+
+            l.append(id)
+            dic = G.get_edge_data(*l)
+            if dic is None:
+                names = obj.intersec(*l)
+                if not names:
+                    continue
+                ivstnames = getitem(r['boards'], 'name')
+                G.add_edge(l[0], l[1],
+                    {
+                    'ivst': 1,
+                    'bossCnt': len(names),
+                    'bossX': list(names),
+                    'bossJac': obj.jaccard(*l),
+                    'death': sum([(il in badcoms) for il in l]),
+                    'ivstCnt': len(ivstnames),
+                    'ivstRatio': float(len(ivstnames)) / len(obj.xdic[id])
+                    })
+            else:
+                ivstnames = getitem(r['boards'], 'name')
+                dic['ivst'] = 1
+                dic['ivstcnt'] = len(ivstnames)
+                dic['ivstRatio'] = float(len(ivstnames)) / len(obj.xdic[id])
+
+    if not cond:
+        cond = {}
+    ret = db.cominfo.find(cond, {'id': 1, 'boards': 1, '_id': 0})
+    map(update, ret)
+
+
+def insComBosslink(G):
+    print get_funname()
+    db.ComBosslink.drop()
+    for x in G.edges():
+        dic = {'src': x[0], 'dst': x[1]}
+        dic.update(G.get_edge_data(*x))
+        db.ComBosslink.insert(dic)
+
+
+def makeboss(obj, G):
+    print get_funname()
+    db.bossnode.drop()
+
+    bossdic = defaultdict(groupset)
+    for k, v in obj.ydic.iteritems():
+        map(bossdic[k].add, v)
+    for l in G.edges():
+        names = obj.intersec(*l)
+        for name in names:
+            bossdic[name].add(*l)
+
+    #bossobj = sm()
+    for k, vs in bossdic.iteritems():
+        # print k, v
+        for v in vs:
+            doc = {'name': k, 'orgs': list(v)}
+            db.bossnode.insert(doc)
+            setattr(v, '_id', doc['_id'])
+            #bossobj.adddic(doc['_id'], doc, 'orgs')
+
+    return bossdic#, bossobj
+
+
+@deprecated
+def insbosslink(bossobj):
+    db.bosslink.drop()
+    set_trace()
+    for l in bossobj.links:
+        orgs = bossobj.intersec(*l)
+        doc = {'link': l, 'orgs': list(orgs), 'cnt': len(orgs), 'jaccard': bossobj.jaccard(*l)}
+        db.bosslink.insert(doc)
+
+
+def updboards(obj, G, bossdic):
+    print get_funname()
+    ret = db.cominfo.find({'boardcnt': {'$gt': 0}})
+    fun = lambda boss: boss['name'] not in bad_boards
     for r in ret:
-        key0 = getkey(r)
-        if key0 not in mandic:
-            continue
-        if r['id'] not in bossdic:
-            ret = cn.boards.find({
-                'id': r['id'],
-                'title': {'$ne': u'法人代表'}}).sort('no')
-            for r in ret:
-                bossdic[r['id']] = getkey(r)
-                break
-            if r['id'] not in bossdic:
-                bossdic[r['id']] = [getkey(r)]
-
-        if key0 == bossdic[r['id']]:
-            continue
-        key1 = bossdic[r['id']]
-        if key1 not in mandic:
-            continue
-        if isinstance(key1, list):
-            for key in key1:
-                inskey(key0, key)
-                inskey(key, key0)
-            bossdic[r['id']].append(key0)
-        else:
-            inskey(key0, key1)
-
-
-def fixboardtarget():
-    ret = cn.boards.find()
-    idss = set()
-    [idss.add(x['id']) for x in ret]
-    map(chgtarget, chunk(tuple(idss), 1000))
-
-
-def chgtarget(ids):
-    ret = {(r['name'], r['target']): r for r in cn.bossnode.find({'coms': {'$in': ids}})}
-    brds = cn.boards.find({'id': {'$in': ids}})
-    for brd in brds:
-        key = brd['name'], brd['target']
-        r = ret.get(key)
-        if r:
-            brd['target'] = r['_id']
-        else:
-            brd['target'] = None
-        cn.boards.save(brd)
-    print brd['id'], brd['name'], brd['target']
-
-
-def setComnetBoss():
-    """ Define company network by boss name """
-    ret = cn.boards.find()
-    idss = set()
-    [idss.add(x['id']) for x in ret]
-    dic = defaultdict(int)
-    dic = reduce(lambda dic, x: insComnetBoss(x, dic), chunk(tuple(idss), 1000), dic)
-
-
-from datetime import datetime
-def insComnetBoss():
-    cn.ComnetBoss.drop()
-
-    names = defaultdict(list)
-    ids = defaultdict(set)
-    ret = cn.boards.find(
-        {'name': {'$nin': bad_boards}},
-        {'_id': 0, 'name': 1, 'id': 1})
-    fun = lambda x, y: names[x].append(y)
-    [fun(r['name'], r['id']) for r in ret]
-    ret = cn.boards.find(
-        {'name': {'$nin': bad_boards}},
-        {'_id': 0, 'name': 1, 'id': 1})
-    fun1 = lambda x, y: ids[x].add(y)
-    [fun1(r['id'], r['name']) for r in ret]
-
-    cnt = 0
-    dic = defaultdict(int)
-    for k, v in names.iteritems():
-        # if len(v) == 1:
-        #     continue
-        for v1, v2 in it.combinations(v, 2):
-            key = tuple(sorted([v1, v2]))
-            item = dic.setdefault(key, {'intr': 0, 'union': 0})
-            item['intr'] += 1
-        cnt += 1
-
-    print 'unioning', datetime.now()
-    for ks, v in dic.iteritems():
-        k1, k2 = ks
-        v['union'] = len(ids[k1] | ids[k2])
-        if v['union'] == 0:
-            set_trace()
-        v['jaccard'] = v['intr'] / v['union']
-        v['conn'] = ks
-
-    cn.ComnetBoss.insert(dic.values())
-    print 'unioned', datetime.now()
+        for boss in r['boards']:
+            if fun(boss):
+                try:
+                    id, name = r['id'], boss['name']
+                    boss['target'] = bossdic[name].getgrp(id)._id
+                except:
+                    print_exc()
+                    set_trace()
+            else:
+                boss['target'] = None
+        db.cominfo.save(r)
 
 
 if __name__ == '__main__':

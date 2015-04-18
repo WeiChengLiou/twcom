@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import json
+import cPickle
 from bson.objectid import ObjectId
 from utils import *
 from work import *
@@ -13,48 +15,14 @@ from pdb import set_trace
 import re
 from collections import defaultdict
 from vis import output as opt
+import yaml
+CONFIG = yaml.load(open('config.yaml'))
+bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
 
 
 # Basic{{{
-def get_boss_network_old(names, maxlvl=1, level=0, items=None, G=None):
-    # 逐級建立董監事網絡圖
-
-    if not hasattr(names, '__iter__'):
-        names = [names]
-
-    if G is None:
-        G = nx.DiGraph()
-
-    if items is None:
-        items = {name: level for name in names}
-
-    ret = cn.bossedge.find({
-        '$or': [{'src': {'$in': names}},
-                {'dst': {'$in': names}}]})
-    newlvl = level + 1
-    for r in ret:
-        if (newlvl > maxlvl) and \
-                not all([x in items for x in (r['src'], r['dst'])]):
-            continue
-        G.add_edge(r['src'], r['dst'], {'width': r['cnt']})
-
-        if r['src'] not in items:
-            items[r['src']] = newlvl
-        if r['dst'] not in items:
-            items[r['dst']] = newlvl
-
-    if level == 0:
-        for lvl in xrange(1, maxlvl+1):
-            ids1 = [key1 for key1, lvl1 in it.ifilter(
-                    lambda x: lvl == x[1], items.iteritems())]
-            get_boss_network_old(ids1, maxlvl=maxlvl,
-                                 level=lvl, items=items, G=G)
-    return G
-
-
 def get_boss_network(**kwargs):
     # 逐級建立董監事網絡圖
-
     if kwargs.get('names'):
         targets = getbosslike(kwargs.get('name', u''))
     else:
@@ -64,54 +32,81 @@ def get_boss_network(**kwargs):
         if isinstance(targets[0], str):
             targets = map(ObjectId, targets)
 
-    G = kwargs.setdefault('G', nx.Graph())
-    comdic = kwargs.setdefault('comdic', {})
-    maxlvl = kwargs.setdefault('maxlvl', 1)
-    namedic = kwargs.setdefault('namedic', {k: 0 for k in targets})
-    level = kwargs.setdefault('level', 0)
-    cn = kwargs.setdefault('cn', init('twcom'))
-    method = kwargs.setdefault('method', 0)
-    #print kwargs
+    def list_boss(boards):
+        try:
+            return list(it.ifilter(lambda r: r.get('target'), boards))
+        except:
+            print pdic(boards)
+            print_exc()
 
-# 1. 給定 name 與 target，查詢相關公司
-    ret = cn.bossnode.find({
+            raise Exception('boards error')
+
+    G = nx.Graph()
+    comdic = {}
+    maxlvl = kwargs.get('maxlvl', 1)
+    namedic = {str(k): 0 for k in targets}
+    db = kwargs.get('db', init(CONFIG['db']))
+    method = kwargs.get('method', 0)
+
+    ret = db.bossnode.find({
         '_id': {'$in': targets}})
-    coms = []
     for r in ret:
-        [coms.append(x) for x in r['coms'] if x not in comdic]
-        G.add_node(r['_id'], {'size': len(r['coms'])})
-        G.node[r['_id']].update(r)
-    [comdic.__setitem__(com, level) for com in coms]
+        [comdic.setdefault(x, 0) for x in r['orgs']]
+    coms = list(comdic.keys())
+    titledic = defaultdict(list)
 
-# 2. 給定相關公司後，找出同間公司的董監名單
-    if level < maxlvl:
-        ret = cn.boards.find(
+    def subgraph(G, coms, lvl):
+        print 'level', lvl
+        # 1. 給定 name 與 target，查詢相關公司
+        newlvl = lvl + 1
+        if not coms:
+            return G, coms, newlvl
+
+        # 2. 給定相關公司後，找出同間公司的董監名單
+        ret = db.cominfo.find(
             {'id': {'$in': coms},
-             'target': {'$ne': None},
              'source': 'twcom',
-             }).sort('id')
-        for k, rs in it.groupby(ret, lambda x: x['id']):
-            rs = tuple(rs)
-            addbossedge(G, rs, method)
-            for r in rs:
-                key = r['target']
-                if key not in namedic:
-                    namedic[key] = level + 1
+             }, {'id': 1, 'boards': 1, '_id': 0, 'name': 1})
+        for rs in ret:
+            boards = list_boss(rs['boards'])
+            [b.__setitem__('target', str(b['target'])) for b in boards]
+            bosset = getitem(boards, 'target')
+            addbossedge(G, bosset, method)
+            [namedic.setdefault(b, lvl) for b in bosset]
+            for b in boards:
+                titledic[b['target']].append(
+                    u'{0} {1}'.format(rs['name'], b['title']))
 
-    if level == 0:
-        for lvl in xrange(1, maxlvl + 1):
-            kwargs['level'] = lvl
-            ids1 = [key1 for key1, lvl1 in it.ifilter(
-                    lambda x: lvl == x[1], namedic.iteritems())]
-            if ids1:
-                kwargs['target'] = ids1
-                get_boss_network(**kwargs)
+        for key0, lvl0 in namedic.iteritems():
+            if lvl0 == lvl - 1:
+                node = G.node[key0]
+                node['titles'] = u'\n'.join(titledic.pop(key0))
 
+        if lvl >= maxlvl:
+            return G, coms, newlvl
+
+        newtgt = [ObjectId(key1) for key1, lvl1 in namedic.iteritems() if lvl1 == lvl]
+        ret = db.bossnode.find({'_id': {'$in': newtgt}})
+        for r in ret:
+            r['size'] = len(r['orgs'])
+            [comdic.setdefault(x, newlvl) for x in r['orgs']]
+            G.node[str(r.pop('_id'))].update(r)
+
+        coms = [k for k, v in comdic.iteritems() if v == lvl]
+
+        return G, coms, newlvl
+
+    G, coms, newlvl = \
+        reduce(lambda x, y: subgraph(*x),
+               xrange(maxlvl + 1),
+               (G, coms, 0))
     return G
 
 
 def addbossedge(G, rs, method=0):
     # 3. 根據不同 graph 需求，畫出同公司董監事間的 boss edge
+    if not rs:
+        return
     def addedge(key1, key2):
         if G.has_edge(key1, key2):
             dic = G.get_edge_data(key1, key2)
@@ -121,58 +116,54 @@ def addbossedge(G, rs, method=0):
 
     if method == 0:
         r0 = rs[0]
-        for r in rs:
-            if (r['title'] == u'董事長') or (int(r.get('no', 99) == 0)):
-                r0 = r
-                break
-        for r in it.ifilter(lambda x: x != r0, rs):
-            addedge(r0['target'], r['target'])
+        for r in rs[1:]:
+            addedge(r0, r)
     else:
         for r1, r2 in it.combinations(rs, 2):
-            addedge(r1['target'], r2['target'])
+            addedge(r1, r2)
 
 
-def get_network(ids, maxlvl=1, level=0, items=None, G=None, lnunit=None):
+def get_network(ids, maxlvl=1, **kwargs):
     # 逐級建立公司網絡圖
 
     if not hasattr(ids, '__iter__'):
         ids = [ids]
 
-    if G is None:
-        G = nx.DiGraph()
-        for r in ids:
-            G.add_node(r)
+    lnunit = kwargs.get('lnunit', 'ivstCnt')
+    cond = {}
+    cond['death'] = 0
+    cond['ivst'] = kwargs.get('ivst', {'$gt': -1})
 
-    if items is None:
-        items = {id: level for id in ids}
+    G = nx.DiGraph()
+    map(G.add_node, ids)
 
-    if not lnunit:
-        lnunit = 'seat'
+    items = {id: 0 for id in ids}
+    f = lambda r: not G.has_edge(r['src'], r['dst'])
 
-    newlvl = level + 1
-    ret = cn.comivst.find({
-        '$or': [{'src': {'$in': ids}},
-                {'dst': {'$in': ids}}]})
+    def subgraph(G, ids, lvl):
+        newlvl = lvl + 1
+        if not ids:
+            return G, [], newlvl
 
-    for r in ret:
-        if (newlvl > maxlvl) and \
-                not all([x in items for x in (r['src'], r['dst'])]):
-            continue
-        G.add_edge(r['src'], r['dst'],
-                   {'width': r.get(lnunit, 1)})
+        cond['$or'] = [{'src': {'$in': ids}},
+                       {'dst': {'$in': ids}}]
+        ret = db.ComBosslink.find(cond, {'_id': 0})
 
-        if r['src'] not in items:
-            items[r['src']] = newlvl
-        if r['dst'] not in items:
-            items[r['dst']] = newlvl
+        for r in it.ifilter(f, ret):
+            if r['src'] not in items:
+                items[r['src']] = newlvl
+            if r['dst'] not in items:
+                items[r['dst']] = newlvl
 
-    if level == 0:
-        for lvl in xrange(1, maxlvl+1):
-            ids1 = [key1 for key1, lvl1 in it.ifilter(
-                    lambda x: lvl == x[1], items.iteritems())]
-            get_network(ids1, maxlvl=maxlvl,
-                        level=lvl, items=items, G=G, lnunit=lnunit)
+            r['width'] = r.get(lnunit, 1)
+            G.add_edge(r.pop('src'), r.pop('dst'), r)
 
+        ids1 = [key1 for key1, lvl1 in it.ifilter(
+                lambda x: lvl == x[1], items.iteritems())]
+        return G, ids1, newlvl
+
+    G, ids, lvl = reduce(lambda x, y: subgraph(*x),
+                         xrange(maxlvl), (G, ids, 0))
     return G
 
 
@@ -185,7 +176,7 @@ def getbosslike(names):
     if not hasattr(names, '__iter__'):
         names = [names]
     for name in names:
-        ret = cn.bossnode.find({'name': name})
+        ret = db.bossnode.find({'name': name})
         for r in ret:
             yield r['_id']
 
@@ -195,7 +186,7 @@ def getidlike(names):
     if not hasattr(names, '__iter__'):
         names = [names]
     for name in names:
-        ret = cn.iddic.find({'name': {'$regex': name}})
+        ret = db.iddic.find({'name': {'$regex': name}})
         for r in ret:
             if len(r['id']) > 1:
                 logger.warning(u'Duplicate id: %s', name)
@@ -218,26 +209,24 @@ def get_boss(id, ind=False):
     # get boss list by company id
     #if not hasattr(id, '__iter__'):
     #    id = [id]
-    cond = {'id': id,
-            'name': {'$ne': u'缺額'}}
-    if not ind:
-        cond['title'] = {'$not': re.compile(u'.*獨立.*')}
+    bconds = [(lambda b: b['name'] not in bad_boards)]
+    if ind:
+        bconds.append((lambda b: u'獨立' not in b['title']))
+    fun = lambda b: all(map(lambda f: f(b), bconds))
 
-    rs = [r for r in cn.boards.find(cond, {'_id': 0})]
-    [r.__setitem__('target', str(r['target'])) for r in rs]
-    dic = {'boards': rs}
-
-    ret = cn.cominfo.find({'id': id}, {'_id': 0, 'name': 1})
+    ret = db.cominfo.find({'id': id}, {'_id': 0, 'name': 1, 'boards': 1})
     for r in ret:
-        dic['name'] = r['name']
-    return dic
+        r['boards'] = list(it.ifilter(fun, r['boards']))
+        [r1.__setitem__('target', str(r1['target'])) for r1 in r['boards']]
+        return r
 
 
+@deprecated
 def getBoardbyID(ids):
     # get board list by company ids
     if not hasattr(ids, '__iter__'):
         ids = [ids]
-    boards = cn.boards.find({'id': {'$in': ids}})
+    boards = db.boards.find({'id': {'$in': ids}})
     df = getdf(boards)
     dic = {k: v[
         ['no', 'title', 'name', 'equity', 'repr_instid', 'repr_inst']
@@ -247,9 +236,9 @@ def getBoardbyID(ids):
 
 def getbosskey(name, id):
     # get boss key
-    ret = cn.bossnode.find_one(
+    ret = db.bossnode.find_one(
         {'name': name,
-         'coms': {'$in': [id]}})
+         'orgs': {'$in': [id]}})
     if ret:
         return u'\t'.join((ret['name'], ret['target']))
     else:
@@ -261,9 +250,11 @@ def getcomboss(ids):
     if not hasattr(ids, '__iter__'):
         ids = [ids]
 
-    ret = cn.boards.find({'id': {'$in': ids}, 'target': {'$ne': None}})
+    ret = db.cominfo.find({'id': {'$in': ids}})
+    f = lambda boss: boss.get('target')
     for r in ret:
-        yield r['target']
+        for boss in it.ifilter(f, r['boards']):
+            yield boss['target']
 
 
 def fillgrp(g, grps):
@@ -316,7 +307,7 @@ def setedge_width(G, fun):
     for x in G.edges():
         y = G.get_edge_data(*x)
         if y.get('width'):
-            print y['width'], fun(y['width'])
+            # print y['width'], fun(y['width'])
             y['width'] = fun(y['width'])
 
 
@@ -342,24 +333,25 @@ def exp_boss(G, **kwargs):
     # Export graph
     if len(G.node) == 0:
         return
-    G = G.to_undirected()
     fill_boss_info(G)
 
     sizedic = {}
     for name, dic in G.node.iteritems():
-        sizedic[name] = len(dic['coms'])
+        sizedic[name] = dic['size']
 
     deg = translate(sizedic, [5, 50])
     setnode(G, 'size', deg)
 
-    ngrp = sum([v.get('group', 0) for v in G.node.values()])
-    if ngrp == 0:
-        output = cluster(nx.betweenness_centrality(G))
-        setnode(G, 'group', output)
+    # ngrp = sum([v.get('group', 0) for v in G.node.values()])
+    # if ngrp == 0:
+    #     output = cluster(nx.betweenness_centrality(G))
+    #     setnode(G, 'group', output)
+    [v.setdefault('group', 0) for k, v in G.node.iteritems()]
 
     return opt.exp_graph(G, **kwargs)
 
 
+# @timeit
 def exp_company(G, **kwargs):
     # Export company network
     # Fill info, translate degree centrality into size
@@ -367,6 +359,7 @@ def exp_company(G, **kwargs):
     # Export graph
     if len(G.node) == 0:
         return
+    
     fill_company_info(G)
     G1 = G.to_undirected(G)
 
@@ -377,10 +370,11 @@ def exp_company(G, **kwargs):
             degs = {k: 8 for k in G.node}
         setnode(G, 'size', degs)
 
-    if any([('group' not in dic) for dic in G.node.values()]):
-        output = cluster(nx.betweenness_centrality(G1))
-        setnode(G, 'group', output)
-
+    # if any([('group' not in dic) for dic in G.node.values()]):
+    #     output = cluster(nx.betweenness_centrality(G1))
+    #     setnode(G, 'group', output)
+    [v.setdefault('group', 0) for k, v in G.node.iteritems()]
+    
     #print keargs.get('lineunit')
     #if kwargs.get('lineunit') == 'seatratio':
     #    setedge_width(G, lambda x: float(x)/10.)
@@ -388,9 +382,10 @@ def exp_company(G, **kwargs):
     return opt.exp_graph(G, **kwargs)
 
 
-def showkv(id, name, info=None, board=None):
+def showkv(id, name, info=None):
     # Prepare cominfo for tooltip
     s1 = []
+    boardcol = ('title', 'name', 'equity', 'repr_instid', 'repr_inst')
 
     if info is None:
         s1.append(u'統一編號: %s' % id)
@@ -405,9 +400,10 @@ def showkv(id, name, info=None, board=None):
     # Because board maybe None, or DataFrame,
     # but can also be empty DataFrame or not.
     # So combined two conditions here
-    if (board is not None) and (len(board) > 0):
-        for k, q in board.iterrows():
-            s1.append(u' '.join(map(unicode, q)))
+    if info['boards']:
+        for b in info['boards']:
+            s1.append(
+                u' '.join(map(lambda c: unicode(b[c]), boardcol)))
     else:
         s1.append(u'無董監事資料')
 
@@ -421,20 +417,15 @@ def fill_company_info(G):
     assert(len(G.node) > 0)
     ids = G.node.keys()
     dic = {'id': {'$in': ids}, 'title': {'$ne': u'法人代表'}}
-    infos = {r['id']: r for r in cn.cominfo.find(dic)}
-    boards = {k: v for k, v in getdf(cn.boards.find(dic)).groupby('id')}
+    infos = {r['id']: r for r in db.cominfo.find(dic)}
     noderm = []
     for id, dic in G.node.iteritems():
-        info = infos[id] if id in infos else None
-        board = boards[id][
-            ['no', 'title', 'name', 'equity', 'repr_instid', 'repr_inst']
-            ].sort('no') if id in boards else None
+        info = infos.get(id)
         if info:
             name = info['name']
         else:
             name = id
-        dic['name'] = name
-        dic['tooltip'] = showkv(id, name, info, board)
+        dic['tooltip'] = showkv(id, name, info)
         dic['capital'] = info['capital'] if info and 'capital' in info else 0
         if info and 'status' in info:
             dic['status'] = info['status']
@@ -442,7 +433,7 @@ def fill_company_info(G):
                 noderm.append(id)
         else:
             dic['status'] = u''
-        dic['name'] = fixname(dic['name'])
+        dic['name'] = fixname(name)
 
     G.remove_nodes_from(noderm)
     return G
@@ -450,57 +441,57 @@ def fill_company_info(G):
 
 def fill_boss_node(G, targets):
     # Fill boss node
-    ret = cn.bossnode.find({'_id': {'$in': targets}})
+    ret = db.bossnode.find({'_id': {'$in': targets}})
     for r in ret:
         node = G.node[r['_id']]
-        node['coms'] = r['coms']
+        node['orgs'] = r['orgs']
         node['name'] = r['name']
 
 
 def getli(k, x):
-    if 'coms' not in x:
+    if 'orgs' not in x:
         print 'Err:', k, x
         raise Exception()
-    return x['coms']
+    return x['orgs']
 
 
 def fill_boss_info(G):
     # Fill boss info
-    targets = G.node.keys()
 
-    #fill_boss_node(G, targets)
-    
-    [x.pop('_id') for x in G.node.values() if '_id' in x]
-    ids = set()
-    [ids.update(getli(k, x)) for k, x in G.node.iteritems()]
-    ids = tuple(ids)
-    ret = cn.boards.find({'target': {'$in': tuple(targets)}})
-    dic = defaultdict(list)
-    for r in ret:
-        dic[r['target']].append((r['id'], r['title']))
+    # [x.pop('_id') for x in G.node.values() if '_id' in x]
 
-    namedic = getnamedic(ids)
-    for k, v in dic.iteritems():
-        if k not in G.node:
-            continue
-        node = G.node[k]
-        v = sorted(v)
+    # ids = set()
+    # [ids.update(getli(k, x)) for k, x in G.node.iteritems()]
+    # ids = tuple(ids)
+    # namedic = getnamedic(ids)
 
-        grpli = [node['name']]
-        for id, grp in it.groupby(v, lambda x: x[0]):
-            com = namedic[id]
-            grp = tuple(grp)
-            if len(grp) > 1:
-                print 'Multiplicate group', node['name'], id, pdic(grp)
-                grpli.append(u'\n'.join(
-                    [u'\t'.join([com, x[1]]) for x in grp
-                        if x[1] != u'法人代表']
-                ))
-            else:
-                grpli.append(u'\t'.join([com, grp[0][1]]))
-        node['titles'] = grpli[1:]
-        node['tooltip'] = u'\n'.join(grpli)
-        node['size'] = len(node['coms'])
+    # targets = tuple(G.node.keys())
+    # dic = defaultdict(list)
+    # ret = db.bossnode.find({'_id': {'$in': targets}})
+    # orgs = tuple(set(it.chain.from_iterable(getitem(ret, 'orgs'))))
+    # ret = db.cominfo.find({'id': {'$in': orgs}})
+
+    # for r in ret:
+    #     for b in r['boards']:
+    #         if b.get('target'):
+    #             dic[b['target']].append((r['id'], b['title']))
+
+    for k, node in G.node.iteritems():
+        # grpli = [node['name']]
+        # for id, grp in it.groupby(sorted(dic[k]), lambda x: x[0]):
+        #     com = namedic[id]
+        #     grp = tuple(grp)
+        #     if len(grp) > 1:
+        #         print 'Multiplicate group', node['name'], id, pdic(grp)
+        #         grpli.append(u'\n'.join(
+        #             [u'\t'.join([com, x[1]]) for x in grp
+        #                 if x[1] != u'法人代表']
+        #         ))
+        #     else:
+        #         grpli.append(u'\t'.join([com, grp[0][1]]))
+        # node['titles'] = grpli[1:]
+        node['tooltip'] = u'\n'.join([node['name'], node['titles']])
+        # node['size'] = len(node['orgs'])
 
     for k, v in G.node.iteritems():
         assert('titles' in v)
@@ -514,11 +505,11 @@ w2 = u'\u202c'
 
 def queryboss(name):
     name = name.replace(w2, u'')
-    ret = list(cn.bossnode.find({'name': re.compile(name)}, {'target': 0}))
-    ids = set(flatten([r['coms'] for r in ret]))
+    ret = list(db.bossnode.find({'name': re.compile(name)}, {'target': 0}))
+    ids = set(flatten([r['orgs'] for r in ret]))
     dic = getnamedic(tuple(ids))
     for r in ret:
-        r['coms'] = map(lambda x: dic.get(x, x), r['coms'])
+        r['orgs'] = map(lambda x: dic.get(x, x), r['orgs'])
         r['_id'] = str(r['_id'])
     return ret
 
@@ -561,21 +552,24 @@ def get_network_boss(name=None, target=None, **kwargs):
         cond = {'_id': {'$in': targets}}
     else:
         cond = {'_id': ObjectId(target)}
-    coms = [r['coms'] for r in cn.bossnode.find(cond, {'_id': 0, 'coms': 1})]
+    orgs = getitem(db.bossnode.find(cond, {'_id': 0, 'orgs': 1}), 'orgs')
+    orgs = tuple(set(flatten(orgs)))
 
-    g = get_network(tuple(set(flatten(coms))), **kwargs)
-    fillgrp(g, coms)
+    g = get_network(orgs, **kwargs)
+    fillgrp(g, orgs)
     return g
 
 
 def get_network_comboss(id, **kwargs):
     # get network by boss in the same company
-    targets = [r['target'] for r in cn.boards.find({'id': id})]
-    ids = []
-    for r in cn.bossnode.find({'_id': {'$in': targets}}):
-        ids.extend(r['coms'])
+    ret = db.cominfo.find({'id': id})
+    for r in ret:
+        targets = getitem(r['boards'], 'target')
+    ids = set()
+    for r in db.bossnode.find({'_id': {'$in': targets}}):
+        ids.update(r['orgs'])
 
-    g = get_network(ids, **kwargs)
+    g = get_network(list(ids), **kwargs)
     fillgrp(g, [ids])
     return g
 
@@ -583,10 +577,10 @@ def get_network_comboss(id, **kwargs):
 def get_network_comaddr(id, **kwargs):
     # get network from the same addr
     addr = None
-    for r in cn.cominfo.find({'id': id}):
+    for r in db.cominfo.find({'id': id}):
         addr = r['addr']
 
-    ids = [r['id'] for r in cn.cominfo.find({'addr': addr})]
+    ids = [r['id'] for r in db.cominfo.find({'addr': addr})]
     g = get_network(ids, **kwargs)
     fillgrp(g, [ids])
     return g
@@ -595,10 +589,12 @@ def get_network_comaddr(id, **kwargs):
 # }}}
 # {{{Ranking
 def getRanking(data, rankby, n):
-    ret = cn.ranking.find(
+    ret = db.ranking.find(
         {'data': data, 'rankby': rankby},
         {'ranks': {'$slice': n}, '_id': 0})
-    return ret.next()['ranks']
+    for r in ret:
+        return r['ranks']
+    return 'NULL'
 
 # }}}
 

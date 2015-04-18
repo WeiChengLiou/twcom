@@ -26,12 +26,19 @@ urls = [
     u'com?id={id}',
     u'com?comboss={id}',
     u'com?comaddr={id}',
-    u'boss?id={id}']
+    u'boss?id={id}',
+    ]
 
 
-def test(url0):
+for rankby in ('ivst', 'sons', 'inst', 'bosscoms'):
+    url = u'rank?data=twcom&rankby={rankby}&n=10'.format(
+            rankby=rankby)
+    urls.append(url)
+
+
+def test(k, url0):
     url = site+url0
-    print url.encode('utf8')
+    print k, url.encode('utf8')
     req = requests.get(url)
     try:
         print req.text[:1000]
@@ -42,10 +49,10 @@ def test(url0):
         raise Exception()
 
 
-dic = {k: test(v) for k, v in urls0.iteritems()}
-urls[0] = urls[0].format(name=choice(dic['board'])['name'])
-urls[1] = urls[1].format(target=choice(dic['board'])['target'])
+dic = {k: test(k, v) for k, v in urls0.iteritems()}
+urls[0] = urls[0].format(name=choice(dic['board']['boards'])['name'])
+urls[1] = urls[1].format(target=choice(dic['board']['boards'])['target'])
 for i in xrange(2, 6):
     urls[i] = urls[i].format(id=choice(dic['com'].keys()))
-map(test, urls)
+[test(i, v) for i, v in enumerate(urls)]
 

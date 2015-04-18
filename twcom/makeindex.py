@@ -40,14 +40,27 @@ fis1 = it.ifilter(lambda x: x[0] == '0', fis)
 
 
 class adjname(object):
-    li = [(u'\u3000', u' '),
-          (u'証券', u'證券'),
-          (u'證卷', u'證券'),
-          (u'台灣', u'臺灣')]
+    fixwordli = [
+        (u'︵', u'('),
+        (u'︶', u')'),
+        (u'（', u'('),
+        (u'）', u')'),
+        (u'証券', u'證券'),
+        (u'證卷', u'證券'),
+        (u'其金會', u'基金會'),
+        (u'圖書�', u'圖書館'),
+        (u'臺灣', u'台灣'),
+        (u'臺北', u'台北'),
+        (u'臺中', u'台中'),
+        (u'臺東', u'台東'),
+        (u'臺南', u'台南'),
+        (u'臺西', u'台西'),
+        (u'\u3000', u' '),
+        (u'。', u'')]
 
     @staticmethod
     def run(v):
-        return reduce(lambda x, y: x.replace(*y), adjname.li, v)
+        return reduce(lambda x, y: x.replace(*y), adjname.fixwordli, v)
 
 
 # 每個 json item 可分為以下類別
@@ -99,6 +112,8 @@ class ComItem(object):
 
     def process(self, key, v):
         if key == 'name':
+            if isinstance(v, list) and len(v)==1:
+                v = v[0]
             if isinstance(v, list):
                 if isinstance(v[1], list):
                     self.name1 = v[1][0]
@@ -147,15 +162,54 @@ class ComItem(object):
                 print_exc()
                 set_trace()
 
-        if hasattr(self, 'boardcnt'):
-            # 公司基本資料新增董監事人數
-            items['boardcnt'] = self.boardcnt
+        items['boards'] = self.getboards()
+        items['boardcnt'] = len(items['boards'])
 
         try:
-            cn.cominfo.insert(items)
+            db.cominfo.insert(items)
         except:
             print_exc()
             set_trace()
+
+    def getboards(self):
+        # 取得董監事資料
+        li = []
+
+        if 'boards' not in self.__dict__:
+            return li
+        boardic = filedic['boards']
+
+        # 各公司董監事名單使用 set 儲存，因為可能有重複
+        sets = set()
+        cnt = 0
+        for boss in self.boards:
+            vs = {}
+            for col, v in boss.iteritems():
+                if col == u'所代表法人':
+                    if isinstance(v, list):
+                        vs['repr_inst'] = v[1]
+                        vs['repr_instid'] = v[0]
+                    else:
+                        vs['repr_inst'] = v
+                        vs['repr_instid'] = '0'
+                    vs['repr_inst'] = adjname.run(vs['repr_inst'])
+                else:
+                    vs[boardic[col]] = v if not isinstance(v, basestring) else v.strip()
+
+            vs['name'] = adjname.run(vs['name'])
+            kvs = tuple([vs[k] for k in (
+                'name', 'repr_inst', 'repr_instid')])
+            if kvs not in sets:
+                sets.add(kvs)
+
+                try:
+                    li.append(vs)
+                    cnt += 1
+                except:
+                    print_exc()
+                    set_trace()
+
+        return li
 
     def insboards(self):
         # 輸入董監事資料
@@ -194,7 +248,7 @@ class ComItem(object):
                 sets.add(kvs)
 
                 try:
-                    cn.boards.insert(vs)
+                    db.boards.insert(vs)
                     cnt += 1
                 except:
                     print_exc()
@@ -249,13 +303,12 @@ def runjobs(*args):
 
 def refresh():
     # 新增、處理資料庫
-    #global cn
 
     #cn = init(CONFIG['db'])
-    cn.cominfo.drop()
-    cn.cominfo.ensure_index([('id', 1), ('name', 1)], unique=True)
-    cn.boards.drop()
-    cn.boards.ensure_index(
+    db.cominfo.drop()
+    db.cominfo.ensure_index([('id', 1)], unique=True)
+    db.boards.drop()
+    db.boards.ensure_index(
         [
             ('id', 1), ('name', 1),
             ('repr_instid', 1), ('repr_inst', 1),
@@ -268,12 +321,18 @@ def refresh():
     #fixing()
 
 
+def fixing1():
+    ins_iddic()
+    fixdata1()
+    cnt = 1
+    while cnt > 0:
+        cnt = fixboards1()
+
+
 def fixing():
     # Preprocessing
 
-    # 新增公司名稱與統編對照（僅留下尚在經營公司）
-#ins_iddic()
-
+    ins_iddic()
     # 修正董監事資料錯別字
     fixdata()
 
@@ -285,11 +344,11 @@ def fixing():
             break
         time.sleep(10)
 
-    if cnt == 0:
-        ins_comivsts()
-        rm_badcomivst()
-    else:
+    if cnt != 0:
         logger.info('Ignore comivst insert process')
+    else:
+        ins_comivsts()
+        #rm_badcomivst()
 
     # if nations:
     #     cPickle.dump((nations,), open('dics.dat', 'wb'), True)
@@ -299,7 +358,7 @@ def defnation():
     # 找出國家別
     nations = set()
     tbls = ('fbranchinfo', 'fagentinfo')
-    for r in cn.cominfo.find({'type': {'$in': tbls},
+    for r in db.cominfo.find({'type': {'$in': tbls},
                               'name': {'$regex': u'商'}},
                              ['name']):
         name = r['name']
@@ -312,40 +371,49 @@ def defnation():
 
 def ins_iddic():
     # 新增公司名稱與統編對照（僅留下尚在經營公司）
-    cn.iddic.drop()
-    cn.iddic.ensure_index([('name', 1)])
+    print get_funname()
+    db.iddic.drop()
 
     def ins_update(name, id):
-        ret = cn.iddic.find_one({'name': name})
-        if ret:
-            ret['id'].append(id)
-            cn.iddic.save(ret)
-        else:
-            cn.iddic.insert({'name': name, 'id': [id]})
+        iddic[name].append(id)
+        # ret = db.iddic.find_one({'name': name})
+        # if ret:
+        #     ret['id'].append(id)
+        #     db.iddic.save(ret)
+        # else:
+        #     db.iddic.insert({'name': name, 'id': [id]})
 
+    iddic = defaultdict(list)
+    bads = list(badstatus(db))
     dic1 = {'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
-            'status': {'$regex': u'核准'}}
+            'status': {'$nin': bads}}
     coldic = {'name': 1, 'id': 1, 'status': 1, 'name1': 1}
 
-    for r in cn.cominfo.find(dic1, coldic):
+    for r in db.cominfo.find(dic1, coldic):
         ins_update(r['name'], r['id'])
         if 'name1' in r:
             ins_update(r['name1'], r['id'])
+    db.iddic.insert(
+        [{'name': k, 'id': v} for k, v in iddic.iteritems()])
+    db.iddic.ensure_index([('name', 1)])
 
 
 def ins_comivsts():
     # 新增公司連結母函數
-    cn.comivst.drop()
-    cn.comivst.ensure_index([
+    badcoms = getbadcoms()
+    db.comivst.drop()
+    db.comivst.ensure_index([
         ('src', 1), ('dst', 1)])
-    comall = cn.boards.distinct('id')
-    map(ins_comivst, chunk(comall, 200))
+    comall = set()
+    [comall.add(r['id']) for r in db.boards.find()]
+    fun = lambda coms: ins_comivst(coms, badcoms)
+    map(fun, chunk(list(comall), 200))
 
 
-def ins_comivst(coms):
+def ins_comivst(coms, badcoms):
     # 新增公司連結子函數
     seatdic = {
-        k['id']: k['boardcnt'] for k in cn.cominfo.find(
+        k['id']: k['boardcnt'] for k in db.cominfo.find(
             {'boardcnt': {'$gt': 0},
              'id': {'$in': coms}},
             ['id', 'boardcnt'])}
@@ -353,7 +421,7 @@ def ins_comivst(coms):
              'repr_inst': {'$ne': ''}}
 
     chkdic = defaultdict(set)
-    dic = groupdic(cn.boards.find(query,
+    dic = groupdic(db.boards.find(query,
                    ['id', 'name', 'repr_instid', 'repr_inst']),
                    lambda r: (r['id'], r['repr_instid'], r['repr_inst']))
     for (dstid, instid, inst), rs in dic.iteritems():
@@ -371,15 +439,17 @@ def ins_comivst(coms):
             'src': srcid,
             'dst': dstid,
             'seat': cnt,
-            'seatratio': cntr}
-        cn.comivst.insert(items)
+            'seatratio': cntr,
+            'death': sum([(il in badcoms) for il in (srcid, dstid)]),
+            }
+        db.comivst.insert(items)
 
         chkdic[srcid].update([r['name'] for r in rs])
 
     fill_hideboss(chkdic)
 
 
-def get_degree(cn):
+def get_degree(db):
     # 取得連結數資訊
     dic = defaultdict(dict)
     coldic = {('$src', 'ncom'): 'ncom_out',
@@ -392,7 +462,7 @@ def get_degree(cn):
         [d.__setitem__(coldic[(tbl, k)], v) for k, v in r.iteritems()]
 
     for col in ('$src', '$dst'):
-        ret = cn.comivst.aggregate([{'$group': {
+        ret = db.comivst.aggregate([{'$group': {
             '_id': '$src',
             'ncom': {'$sum': 1},
             'nseat': {'$sum': '$seat'}}}])['result']
@@ -401,22 +471,14 @@ def get_degree(cn):
     return dic
 
 
-def ins_degree(dic, cn):
-    # 新增連結數資訊
-    ret = cn.cominfo.find({'id': {'$in': dic.keys()}})
-    for r in ret:
-        parm = dic.pop(r['id'])
-        [r.__setitem__(k, v) for k, v in parm.iteritems()]
-        #cn.save(r)
-    print len(dic)
-
-
 def fill_hideboss(chkdic):
     # 新增各公司非董監事的法人代表
-    for r in cn.boards.find({'id': {'$in': chkdic.keys()}}):
+    for r in db.boards.find({'id': {'$in': chkdic.keys()}}):
         if r['id'] in chkdic and r['name'] in chkdic[r['id']]:
             chkdic[r['id']].remove(r['name'])
 
+    # lock = 0
+    # reprdic = defaultdict(list)
     for id, names in chkdic.iteritems():
         for name in names:
             dic = {'id': id,
@@ -426,22 +488,38 @@ def fill_hideboss(chkdic):
                    'repr_instid': 0,
                    'target': id,
                    'equity': 0}
-            cn.boards.save(dic)
+            db.boards.save(dic)
+
+    #         del(dic['id'], dic['target'], dic['_id'])
+    #         reprdic[id].append(dic)
+
+    # ret = db.cominfo.find({'id': {'$in': reprdic.keys()}})
+    # for r in ret:
+    #     r['boards'].extend(reprdic.pop(r['id']))
+    #     r['boardcnt'] = len(r['boards'])
+    #     db.cominfo.save(r)
+    # for id, boards in reprdic.iteritems():
+    #     dic = {'id': id,
+    #            'name': id,
+    #            'boards': boards
+    #            }
+    #     db.cominfo.save(dic)
 
 
+@deprecated
 def rm_badcomivst():
     # 移除公司連結裡非營業中的企業。
     try:
-        bads = list(badstatus(cn))
+        bads = list(badstatus(db))
 
-        coms = set(cn.comivst.distinct('src'))
-        coms.update(cn.comivst.distinct('dst'))
+        coms = set(db.comivst.distinct('src'))
+        coms.update(db.comivst.distinct('dst'))
         dic = {'id': {'$in': list(coms)},
                'status': {'$in': list(bads)}}
-        badcoms = cn.cominfo.find(dic).distinct('id')
+        badcoms = db.cominfo.find(dic).distinct('id')
         print 'badcoms count: {0}'.format(len(badcoms))
-        cn.comivst.remove({'src': {'$in': badcoms}})
-        cn.comivst.remove({'dst': {'$in': badcoms}})
+        db.comivst.remove({'src': {'$in': badcoms}})
+        db.comivst.remove({'dst': {'$in': badcoms}})
     except:
         print_exc()
         set_trace()
@@ -466,7 +544,7 @@ def update(collection, condition, setval, errfun=None):
 def fixboards():
     # 修正董監事名單（母函數）
     condition = {'repr_inst': {'$ne': ''}}
-    reprids = cn.boards.find(condition).distinct('repr_inst')
+    reprids = db.boards.find(condition).distinct('repr_inst')
     step = 100
     totcnt = len(reprids) / 200 + 1
     logger.info('fixboards:  Total Count - {0}'.format(len(reprids)))
@@ -474,6 +552,22 @@ def fixboards():
     for i, x in enumerate(chunk(reprids, step)):
         logger.info('fixboards: {0} / {1}'.format(i, totcnt))
         errcnt, li = fixboard(x)
+        toterr += errcnt
+    print 'update {0} records'.format(toterr)
+    return toterr
+
+
+def fixboards1():
+    # 修正董監事名單（母函數）
+    condition = {'repr_inst': {'$ne': ''}}
+    reprids = db.boards.find(condition).distinct('repr_inst')
+    step = 100
+    totcnt = len(reprids) / 200 + 1
+    logger.info('fixboards:  Total Count - {0}'.format(len(reprids)))
+    toterr = 0
+    for i, x in enumerate(chunk(reprids, step)):
+        logger.info('fixboards: {0} / {1}'.format(i, totcnt))
+        errcnt = fixboard1(x)
         toterr += errcnt
     print 'update {0} records'.format(toterr)
     return toterr
@@ -493,7 +587,7 @@ def fixboard(names):
                 item['equity'] += 1
 
     dic = defaultdict(list)
-    for r in cn.boards.find({'repr_inst': {'$in': names}}):
+    for r in db.boards.find({'repr_inst': {'$in': names}}):
         key = r['repr_instid'], r['repr_inst']
         dic[key].append(r)
 
@@ -503,9 +597,9 @@ def fixboard(names):
         try:
             if id and (len(id) == 8):
                 # 檢查法人代表裡公司名稱是否與基本資料相符
-                ret = cn.cominfo.find_one({'id': id}, ['id', 'name'])
+                ret = db.cominfo.find_one({'id': id}, ['id', 'name'])
                 if ret and name != ret['name']:
-                    [upd_item(cn.boards,
+                    [upd_item(db.boards,
                               item,
                               {'repr_inst': ret['name']})
                         for item in items]
@@ -513,13 +607,13 @@ def fixboard(names):
                     cnt += 1
             else:
                 # 從法人代表公司名稱反查法人代表統編
-                ret = cn.iddic.find_one({'name': name})
+                ret = db.iddic.find_one({'name': name})
                 if ret is None:
                     continue
 
                 ids = ret['id']
                 if len(ids) == 1:
-                    [upd_item(cn.boards,
+                    [upd_item(db.boards,
                               item,
                               {'repr_instid': ids[0]})
                         for item in items]
@@ -535,6 +629,53 @@ def fixboard(names):
             set_trace()
 
     return cnt, li
+
+
+@trytest
+def fixboard1(names):
+    # 修正董監事名單（子函數）
+    li = {}
+    ret0 = db.cominfo.find({'boards.repr_inst': {'$in': names}})
+
+    for r in ret0:
+        chg = 0
+        dic = groupdic(r['boards'], lambda r1: (r1['repr_instid'], r1['repr_inst']))
+        for key, items in dic.iteritems():
+            id, name = key
+
+            if id and (len(id) == 8):
+                # 檢查法人代表裡公司名稱是否與基本資料相符
+                try:
+                    ret = db.cominfo.find_one({'id': id}, ['id', 'name'])
+                    if ret and name != ret['name']:
+                        chg = 1
+                        [item.__setitem__('repr_inst', ret['name'])
+                            for item in items]
+                except:
+                    print_exc()
+                    set_trace()
+            else:
+                # 從法人代表公司名稱反查法人代表統編
+                ret = db.iddic.find_one({'name': name})
+                if ret is None:
+                    continue
+
+                ids = ret['id']
+                if len(ids) == 1:
+                    chg = 1
+                    [item.__setitem__('repr_instid', ids[0])
+                        for item in items]
+                else:
+                    # 相同公司名稱有兩間以上，不處理
+                    logger.warning(
+                        u'Duplicate name: {0} {1} -> {2}'.format(
+                            id, name, u' '.join(ids)))
+        if chg == 1:
+            li[r['id']] = r
+
+    if li:
+        map(db.cominfo.save, li.values())
+    return len(li)
 
 
 def fixdata():
@@ -554,7 +695,7 @@ def fixdata():
 
             try:
                 upd = {'repr_inst': v}
-                ret = cn.iddic.find_one({'name': v})
+                ret = db.iddic.find_one({'name': v})
                 if ret:
                     try:
                         assert(len(ret['id']) == 1)
@@ -564,10 +705,47 @@ def fixdata():
                             print r
                     upd['repr_instid'] = ret['id'][0]
 
-                update(cn.boards, {'repr_inst': k}, upd)
+                update(db.boards, {'repr_inst': k}, upd)
             except:
                 print_exc()
                 set_trace()
+
+
+def fixdata1():
+    # 修正董監事資料錯別字
+    print get_funname()
+    fi = 'fix_board.txt'
+    dic = {}
+    with open(fi) as f:
+        for li in f:
+            k, v = li[:-1].decode('utf8').split('\t')
+            v = adjname.run(v)
+            upd = {'repr_inst': v}
+            ret = db.iddic.find_one({'name': v})
+
+            if ret:
+                try:
+                    assert(len(ret['id']) == 1)
+                    upd['repr_instid'] = ret['id'][0]
+                except:
+                    print 'Duplicate id: ', v
+                    for r in ret['id']:
+                        print r
+
+            dic[k] = upd
+
+    li1 = []
+    for r in db.cominfo.find():
+        chg = 0
+        for boss in r['boards']:
+            try:
+                [boss.__setitem__(k1, v1) for k1, v1 in dic[boss['repr_inst']].iteritems()]
+                chg = 1
+            except:
+                """"""
+        if chg:
+            li1.append(r)
+    map(db.cominfo.save, li1)
 
 
 def get_rawinfo(id):
@@ -592,7 +770,7 @@ def defnamedic():
             'status': {'$regex': u'核准'}}
     coldic = {'name': 1, 'id': 1, 'status': 1, 'name1': 1}
 
-    for r in cn.cominfo.find(dic1, coldic):
+    for r in db.cominfo.find(dic1, coldic):
         namedic[r['id']] = r['name']
         chkname(iddic, r['name'])
         iddic[r['name']].append((r['id'], 0))
