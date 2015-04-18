@@ -78,13 +78,13 @@ Return Company network with node, edge informations
 
 ## Boss network
 
-1. Query by **company id**
+1. Query by **boss id**
 
-    Syntax: url/boss?id=&maxlvl=
+    Syntax: url/boss?bossid=&maxlvl=
 
     Input:
 
-    * id: company id
+    * bossid: boss id
     * maxlvl: (Optional) max levels
 
     Output:

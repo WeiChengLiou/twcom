@@ -47,7 +47,7 @@ compars.add_argument('lineunit', type=unicode)
 
 bospars = reqparse.RequestParser()
 bospars.add_argument('name', type=unicode)
-bospars.add_argument('id', type=unicode)
+bospars.add_argument('bossid', type=unicode)
 
 qrypars = reqparse.RequestParser()
 qrypars.add_argument('boss', type=unicode)
@@ -99,7 +99,7 @@ class ComNetwork(restful.Resource):
 class BossNetwork(restful.Resource):
     def get(self):
         args = bospars.parse_args()
-        G = query.get_bossesnet(args['id'], maxlvl=1)
+        G = query.get_boss_network(target=args['bossid'], maxlvl=1)
         return query.exp_boss(G)
 
 

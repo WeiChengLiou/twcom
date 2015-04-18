@@ -29,7 +29,7 @@ def get_boss_network(**kwargs):
         targets = kwargs.get('target', [])
         if not hasattr(targets, '__iter__'):
             targets = [targets]
-        if isinstance(targets[0], str):
+        if isinstance(targets[0], basestring):
             targets = map(ObjectId, targets)
 
     def list_boss(boards):
@@ -56,7 +56,6 @@ def get_boss_network(**kwargs):
     titledic = defaultdict(list)
 
     def subgraph(G, coms, lvl):
-        print 'level', lvl
         # 1. 給定 name 與 target，查詢相關公司
         newlvl = lvl + 1
         if not coms:
@@ -514,17 +513,17 @@ def queryboss(name):
     return ret
 
 
-def get_bossnet_boss(names, target=None, maxlvl=1):
+def get_bossnet_boss(bossid=None, maxlvl=1):
     # get boss network from boss name
-    raise Exception('Unknown function, maybe should be deprecated!')
-    if not target:
+    if not bossid:
         names = list(getbosslike(names))
     else:
-        names = [getbosskey(names, target)]
+        names = [getbosskey(names, bossid)]
     g = get_boss_network(names, maxlvl)
     return g
 
 
+@deprecated
 def get_bossesnet(ids, **kwargs):
     # get boss network from company ids
     # fill boss info for export
