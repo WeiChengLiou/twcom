@@ -5,6 +5,10 @@ import inspect
 from collections import defaultdict
 import itertools as it
 import time
+import cPickle
+import gzip
+from traceback import print_exc
+from pdb import set_trace
 
 
 def timeit(func):
@@ -158,6 +162,14 @@ def deprecated(func):
         print func.__name__, 'is going to be deprecated.'
         return func(*args, **kwargs)
     return run
+
+
+def save(obj, fi):
+    cPickle.dump(obj, gzip.open(fi, 'wb'))
+
+
+def load(fi):
+    return cPickle.load(gzip.open(fi, 'rb'))
 
 
 if __name__ == '__main__':

@@ -14,7 +14,6 @@ from twcom.groupset import groupset
 import networkx as nx
 
 
-
 com_cond = {'boardcnt': {'$gt': 1}, 'status': {'$regex': u'核准'}}
 tmpid = "00000016", u'王振林'
 

@@ -17,9 +17,12 @@ class sparse_mat(object):
     @classmethod
     def fromlist(cls, lis):
         obj = sparse_mat()
-        for x, y in lis:
+
+        def add(xy):
+            x, y = xy
             obj.xdic[x].add(y)
             obj.ydic[y].add(x)
+        map(add, lis)
         return obj
 
     def __init__(self):

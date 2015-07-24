@@ -590,7 +590,7 @@ def get_network_comaddr(id, **kwargs):
 def getRanking(data, rankby, n):
     ret = db.ranking.find(
         {'data': data, 'rankby': rankby},
-        {'ranks': {'$slice': n}, '_id': 0})
+        {'ranks': {'$slice': n}, '_id': 0, 'rankby': 0, 'data': 0})
     for r in ret:
         return r['ranks']
     return 'NULL'

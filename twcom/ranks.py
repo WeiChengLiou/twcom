@@ -8,6 +8,13 @@ from traceback import print_exc
 from pdb import set_trace
 from bson.son import SON
 import networkx as nx
+import cPickle
+
+
+bads = list(badstatus(db))
+comcond = {'source': 'twcom',
+        'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
+        'status': {'$nin': bads}}
 
 
 def getnamedf(ids):
@@ -100,32 +107,41 @@ def ranksons(n=10):
 
 def rankinst(n=10):
     # 法人代表排名
-    ret = db.boards.aggregate([
-        {'$match': {'repr_inst': {'$ne': ''}}},
-        {'$group': {'_id': {'name': '$name'},
-                    'cnt': {'$sum': 1}
-                    }},
-        {'$sort': SON([('cnt', -1)])},
-        {'$limit': n}
-        ])
-    df = getdf(ret['result'])
+
+    bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
+    df = defaultdict(int)
+    ret = db.cominfo.find()
+    for r in ret:
+        for b in r['boards']:
+            if (b['repr_inst'] != "") and (b['name'] not in bad_boards):
+                key = b['name'], b['target']
+                if b['name'] == u'缺額':
+                    set_trace()
+                df[key] += 1
+    df = pd.Series(df, name='cnt')
+    df.sort(ascending=False)
+    df = df.head(n)
+
+    df = pd.DataFrame(df)
+    df['name'] = [x[0] for x in df.index]
+    df.index = range(len(df))
     df['rank'] = list(ranking(df['cnt']))
-    df['name'] = [x['name'] for x in df['_id']]
     #df['target'] = [x['target'] for x in df['_id']]
-    df = df[['rank', 'name', 'cnt']]
 
     return df
 
 
 def rankbosscoms(n=10):
     # 董監事代表公司數排名
-    ret = db.bossnode.find().limit(n)
+    bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
+    ret = db.bossnode.find()
     df = [{'name': r['name'], '_id': str(r['_id']), 'cnt': len(r['orgs'])}
-          for r in ret]
+          for r in ret if r['name'] not in bad_boards]
     df = pd.DataFrame(df)
     df.sort(columns='cnt', ascending=False, inplace=True)
+    df = df.head(n)
+    df.index = range(len(df))
     df['rank'] = list(ranking(df['cnt']))
-    df = df[['rank', 'name', '_id', 'cnt']]
 
     return df
 
@@ -154,18 +170,16 @@ def inscomrank():
     # df = ranksons(10000)
     # insdb(coll, 'twcom', 'sons', df)
 
-    # df = rankinst(10000)
-    # insdb(coll, 'twcom', 'inst', df)
+    db[coll].remove({'data': 'twcom', 'rankby': 'inst'})
+    df = rankinst(10000)
+    insdb(coll, 'twcom', 'inst', df)
 
-    # df = rankbosscoms(10000)
-    # insdb(coll, 'twcom', 'bosscoms', df)
+    db[coll].remove({'data': 'twcom', 'rankby': 'bosscoms'})
+    df = rankbosscoms(10000)
+    insdb(coll, 'twcom', 'bosscoms', df)
 
-    bads = list(badstatus(db))
-    cond = {'source': 'twcom',
-            'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
-            'status': {'$nin': bads}}
-    df = rankcapital(10000, cond)
-    insdb(coll, 'twcom', 'capital', df)
+    # df = rankcapital(10000, comcond)
+    # insdb(coll, 'twcom', 'capital', df)
 
 
 def insCentralRank(df):
