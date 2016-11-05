@@ -4,15 +4,15 @@
 from twcom import makeindex as mi
 from twcom import run_board_target as runbd
 from twcom import ranks
-import cPickle
-import gzip
 
 
-# mi.refresh()
-# mi.fixing1()
-# mi.fixing()
+mi.insraw()
+mi.refresh()
+mi.genbadstatus()
+mi.fixing1()
+mi.fixing()
 
-# runbd.resetComnetBoss()
+runbd.resetComnetBoss()
 ranks.inscomrank()
 
 # runbd.test()

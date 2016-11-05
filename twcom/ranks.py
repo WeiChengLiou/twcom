@@ -1,20 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from utils import *
-from work import *
+import itertools as it
+from collections import defaultdict
+import pandas as pd
+from utils import db, insitem
+from work import getdf
 from twcom import query
-from traceback import print_exc
 from pdb import set_trace
 from bson.son import SON
 import networkx as nx
 import cPickle
 
 
-bads = list(badstatus(db))
-comcond = {'source': 'twcom',
-        'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
-        'status': {'$nin': bads}}
+# bads = list(badstatus(db))
+# comcond = {'source': 'twcom',
+#            'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
+#            'status': {'$nin': bads}}
 
 
 def getnamedf(ids):
@@ -62,7 +63,7 @@ def rankCentrality(G):
     df['rankbetween'] = df['betweeness'].rank()
     df['rankDegree'] = df['degree'].rank()
 
-    #insdb(coll, data, 'CentralMax', df)
+    # insdb(coll, data, 'CentralMax', df)
     return df
 
 
@@ -119,14 +120,14 @@ def rankinst(n=10):
                     set_trace()
                 df[key] += 1
     df = pd.Series(df, name='cnt')
-    df.sort(ascending=False)
+    df.sort_values(ascending=False, inplace=True)
     df = df.head(n)
 
     df = pd.DataFrame(df)
     df['name'] = [x[0] for x in df.index]
     df.index = range(len(df))
     df['rank'] = list(ranking(df['cnt']))
-    #df['target'] = [x['target'] for x in df['_id']]
+    # df['target'] = [x['target'] for x in df['_id']]
 
     return df
 
@@ -138,7 +139,7 @@ def rankbosscoms(n=10):
     df = [{'name': r['name'], '_id': str(r['_id']), 'cnt': len(r['orgs'])}
           for r in ret if r['name'] not in bad_boards]
     df = pd.DataFrame(df)
-    df.sort(columns='cnt', ascending=False, inplace=True)
+    df.sort_values(columns='cnt', ascending=False, inplace=True)
     df = df.head(n)
     df.index = range(len(df))
     df['rank'] = list(ranking(df['cnt']))
@@ -203,7 +204,7 @@ def updCentralInfo(df):
             db.cominfo.save(r)
 
 
-def insfundrank():
+def insfundrank(coll):
     cond = {'type': {'$nin': [u'社團', u'財團']}}
     df = rankcapital(10000, cond)
     insdb(coll, 'twcom', 'capital', df)
@@ -211,4 +212,3 @@ def insfundrank():
     cond = {'type': {'$in': [u'社團', u'財團']}}
     df = rankcapital(10000, cond)
     insdb(coll, 'twfund', 'capital', df)
-

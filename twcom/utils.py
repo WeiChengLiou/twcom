@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import re
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pdb import set_trace
@@ -9,6 +8,7 @@ from traceback import print_exc
 import logging
 import yaml
 from os.path import exists
+from twcom.work import yload
 logger = logging.getLogger('twcom')
 
 # create console handler and set level to info
@@ -41,13 +41,9 @@ CONFIG = yaml.load(open('config.yaml'))
 db = init(CONFIG['db'])
 
 
-badmark = u'暫缺', u'缺額', u'懸缺', u'死亡', u'補選', u'禁止',\
-    u'解任', u'請辭', u'註銷', u'停權', u'禁止', u'法拍',\
-    u'撤銷', u'當然任', u'不存在', u'臨時', u'辭職'
-
-
 def bad_board(db):
     # get bad board name from badmark()
+    badmark = yload('doc/badmark.yaml')
     condic = {'$or': [
         {'name': {'$regex': key}} for key in badmark]}
     ret = list(db.boards.find(condic, ['name']).distinct('name'))
@@ -91,19 +87,8 @@ def getid(name):
         return name
 
 
-def badstatus(db):
-    # return bad company status
-    status = set()
-    status.update(db.cominfo.find(
-        {'status': {'$not': re.compile(u'核准')}}).distinct('status'))
-    status.update(db.cominfo.find(
-        {'$or': [{'status': {'$regex': u'停業'}},
-         {'status': {'$regex': u'解散'}}]}).distinct('status'))
-    return status
-
-
 def getbadcoms():
-    bads = list(badstatus(db))
+    bads = yload('doc/badstatus.yaml')
     cond = {'status': {'$in': list(bads)}}
     return set([r['id'] for r in db.cominfo.find(cond)])
 
@@ -116,5 +101,3 @@ def insitem(db, coll, item):
     except:
         print_exc()
         set_trace()
-
-

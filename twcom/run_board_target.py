@@ -1,54 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import gzip
 from pdb import set_trace
 from traceback import print_exc
-from collections import defaultdict, Counter
-import cPickle
+from collections import defaultdict
 import itertools as it
-from work import *
-from utils import *
+from twcom.work import yread, get_funname, getitem, groupdic
+from twcom.work import deprecated
+from twcom.utils import db, getbadcoms
 from twcom.sparse_mat import sparse_mat as sm
 from twcom.groupset import groupset
 import networkx as nx
-
-
-com_cond = {'boardcnt': {'$gt': 1}, 'status': {'$regex': u'核准'}}
 tmpid = "00000016", u'王振林'
+bad_boards = yread('doc/bad_boards.yaml')
 
 
 def resetComnetBoss():
-    global bad_boards
-    bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
-
     badcoms = getbadcoms()
     obj, G = setComnetBoss(badcoms)
-    cPickle.dump((obj, G, badcoms), gzip.open('test1.pkl', 'wb'))
-    #obj, G, badcoms = cPickle.load(gzip.open('test.pkl', 'rb'))
+    # save((obj, G, badcoms), 'test1.pkl.gz')
+    # obj, G, badcoms = cPickle.load(gzip.open('test.pkl', 'rb'))
     updivst(obj, G, badcoms)
     insComBosslink(G)
     bossdic = makeboss(obj, G)
-    cPickle.dump((bossdic, ), gzip.open('test2.pkl', 'wb'))
-    #bossdic = cPickle.load(gzip.open('test2.pkl', 'rb'))[0]
+    # save((bossdic, ), 'test2.pkl.gz')
+    # bossdic = cPickle.load(gzip.open('test2.pkl', 'rb'))[0]
     updboards(obj, G, bossdic)
-
-
-def setBadBoards():
-    bad_boards = bad_board(db)
-    cPickle.dump(bad_boards, open('bad_boards.pkl', 'wb'))
-
-
-def test():
-    """"""
-    # badcoms = getbadcoms()
-    # obj, G = setComnetBoss(badcoms)
-    # print 'write'
-    # cPickle.dump((obj, G, badcoms), gzip.open('test.pkl', 'wb'))
-    # print 'write done'
-    # obj, G, badcoms = cPickle.load(gzip.open('test.pkl', 'rb'))
-    # cond = {'id': '84149630'}
-    # updivst(obj, G, badcoms, cond)
 
 
 def setComnetBoss(badcoms):
@@ -132,7 +109,8 @@ def updivst(obj, G, badcoms, cond=None):
 
     def update(r):
         id = r['id']
-        reprs = groupdic(r['boards'], lambda r1: (r1['repr_instid'], r1['repr_inst']))
+        reprs = groupdic(r['boards'],
+                         lambda r1: (r1['repr_instid'], r1['repr_inst']))
         for (instid, inst), rs in reprs.iteritems():
             l = [instid if unicode(instid) != u'0' else inst]
             if l[0] == u'':
@@ -146,8 +124,7 @@ def updivst(obj, G, badcoms, cond=None):
                 if not names:
                     continue
                 ivstnames = getitem(r['boards'], 'name')
-                G.add_edge(l[0], l[1],
-                    {
+                G.add_edge(l[0], l[1], {
                     'ivst': 1,
                     'bossCnt': len(names),
                     'bossX': list(names),
@@ -189,16 +166,16 @@ def makeboss(obj, G):
         for name in names:
             bossdic[name].add(*l)
 
-    #bossobj = sm()
+    # bossobj = sm()
     for k, vs in bossdic.iteritems():
         # print k, v
         for v in vs:
             doc = {'name': k, 'orgs': list(v)}
             db.bossnode.insert(doc)
             setattr(v, '_id', doc['_id'])
-            #bossobj.adddic(doc['_id'], doc, 'orgs')
+            # bossobj.adddic(doc['_id'], doc, 'orgs')
 
-    return bossdic#, bossobj
+    return bossdic  # , bossobj
 
 
 @deprecated
@@ -207,7 +184,9 @@ def insbosslink(bossobj):
     set_trace()
     for l in bossobj.links:
         orgs = bossobj.intersec(*l)
-        doc = {'link': l, 'orgs': list(orgs), 'cnt': len(orgs), 'jaccard': bossobj.jaccard(*l)}
+        doc = {
+            'link': l, 'orgs': list(orgs),
+            'cnt': len(orgs), 'jaccard': bossobj.jaccard(*l)}
         db.bosslink.insert(doc)
 
 
@@ -233,13 +212,12 @@ if __name__ == '__main__':
     names = [u'王文洋', u'余建新', u'羅智先', u'謝國樑', u'王貴雲', u'王雪紅']
     ids = [u'75370905', u'16095002', u'73251209', u'75370601']
 
-    #run_upd_boards()
-    #update_boss()
+    # run_upd_boards()
+    # update_boss()
 
-    #idsall = getcoms2()
-    #dup_bossname(idsall)
-    #dup_boardlist()
-    #comids = ['89399262', '79837539']
-    #dup_bossname(comids)
-    #reset_bossnode()
-
+    # idsall = getcoms2()
+    # dup_bossname(idsall)
+    # dup_boardlist()
+    # comids = ['89399262', '79837539']
+    # dup_bossname(comids)
+    # reset_bossnode()

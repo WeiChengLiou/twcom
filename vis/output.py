@@ -5,7 +5,6 @@ from os.path import join, dirname
 import json
 import pdb
 from traceback import print_exc
-
 template_dir = join(dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(template_dir),

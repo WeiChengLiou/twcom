@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import json
 import cPickle
 from bson.objectid import ObjectId
-from utils import *
-from work import *
+from utils import db, init, logger, getnamedic
+from work import pdic, getitem, deprecated, getdf, fixname
+from work import flatten
 import numpy as np
 import itertools as it
-import operator as op
 import networkx as nx
 from traceback import print_exc
 from pdb import set_trace
@@ -84,7 +83,8 @@ def get_boss_network(**kwargs):
         if lvl >= maxlvl:
             return G, coms, newlvl
 
-        newtgt = [ObjectId(key1) for key1, lvl1 in namedic.iteritems() if lvl1 == lvl]
+        newtgt = [ObjectId(key1) for key1, lvl1 in
+                  namedic.iteritems() if lvl1 == lvl]
         ret = db.bossnode.find({'_id': {'$in': newtgt}})
         for r in ret:
             r['size'] = len(r['orgs'])
@@ -106,6 +106,7 @@ def addbossedge(G, rs, method=0):
     # 3. 根據不同 graph 需求，畫出同公司董監事間的 boss edge
     if not rs:
         return
+
     def addedge(key1, key2):
         if G.has_edge(key1, key2):
             dic = G.get_edge_data(key1, key2)
@@ -206,8 +207,8 @@ def invbosskey(key):
 
 def get_boss(id, ind=False):
     # get boss list by company id
-    #if not hasattr(id, '__iter__'):
-    #    id = [id]
+    # if not hasattr(id, '__iter__'):
+    #     id = [id]
     bconds = [(lambda b: b['name'] not in bad_boards)]
     if ind:
         bconds.append((lambda b: u'獨立' not in b['title']))
@@ -358,7 +359,7 @@ def exp_company(G, **kwargs):
     # Export graph
     if len(G.node) == 0:
         return
-    
+
     fill_company_info(G)
     G1 = G.to_undirected(G)
 
@@ -373,10 +374,10 @@ def exp_company(G, **kwargs):
     #     output = cluster(nx.betweenness_centrality(G1))
     #     setnode(G, 'group', output)
     [v.setdefault('group', 0) for k, v in G.node.iteritems()]
-    
-    #print keargs.get('lineunit')
-    #if kwargs.get('lineunit') == 'seatratio':
-    #    setedge_width(G, lambda x: float(x)/10.)
+
+    # print keargs.get('lineunit')
+    # if kwargs.get('lineunit') == 'seatratio':
+    #     setedge_width(G, lambda x: float(x)/10.)
 
     return opt.exp_graph(G, **kwargs)
 
@@ -513,7 +514,7 @@ def queryboss(name):
     return ret
 
 
-def get_bossnet_boss(bossid=None, maxlvl=1):
+def get_bossnet_boss(names, bossid=None, maxlvl=1):
     # get boss network from boss name
     if not bossid:
         names = list(getbosslike(names))
@@ -596,6 +597,48 @@ def getRanking(data, rankby, n):
     return 'NULL'
 
 # }}}
+
+
+def getComNet(ids, maxlvl=1, **kwargs):
+    # 逐級建立公司網絡圖 from comivst
+
+    if not hasattr(ids, '__iter__'):
+        ids = [ids]
+
+    cond = {}
+    cond['death'] = 0
+
+    G = nx.DiGraph()
+    map(G.add_node, ids)
+
+    items = {id: 0 for id in ids}
+    f = lambda r: not G.has_edge(r['src'], r['dst'])
+
+    def subgraph(G, ids, lvl):
+        newlvl = lvl + 1
+        if not ids:
+            return G, [], newlvl
+
+        cond['$or'] = [{'src': {'$in': ids}},
+                       {'dst': {'$in': ids}}]
+        ret = db.comivst.find(cond, {'_id': 0})
+
+        for r in it.ifilter(f, ret):
+            if r['src'] not in items:
+                items[r['src']] = newlvl
+            if r['dst'] not in items:
+                items[r['dst']] = newlvl
+
+            r['width'] = 1
+            G.add_edge(r.pop('src'), r.pop('dst'), r)
+
+        ids1 = [key1 for key1, lvl1 in it.ifilter(
+                lambda x: lvl == x[1], items.iteritems())]
+        return G, ids1, newlvl
+
+    G, ids, lvl = reduce(lambda x, y: subgraph(*x),
+                         xrange(maxlvl), (G, ids, 0))
+    return G
 
 
 if __name__ == '__main__':

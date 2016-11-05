@@ -9,6 +9,7 @@ import cPickle
 import gzip
 from traceback import print_exc
 from pdb import set_trace
+import yaml
 
 
 def timeit(func):
@@ -125,7 +126,8 @@ def pdic(dic, space=0):
             li.append(u'{0}{1}:{2}'.format(blank, k, pdic(v, space+1)))
         li.append(blank + u'}\n')
         return u''.join(li)
-    elif hasattr(dic, '__iter__') and (not isinstance(dic, basestring)) and (len(dic) > 0):
+    elif hasattr(dic, '__iter__') and (not isinstance(dic, basestring))\
+            and (len(dic) > 0):
         li = [u'[']
         li.append(u','.join(map(pdic, dic)))
         li.append(u']\n')
@@ -166,10 +168,52 @@ def deprecated(func):
 
 def save(obj, fi):
     cPickle.dump(obj, gzip.open(fi, 'wb'))
+    print '%s saved' % fi
 
 
 def load(fi):
     return cPickle.load(gzip.open(fi, 'rb'))
+
+
+def yload(fi):
+    return yaml.load(open(fi))
+
+
+def ysave(obj, fi, debug=0):
+    def toyaml(obj, lvl=0):
+        if isinstance(obj, list) or isinstance(obj, set):
+            for x in obj:
+                if x == u'':
+                    yield u'%s- ""' % (u' ' * lvl)
+                else:
+                    yield u'%s- %s' % (u' ' * lvl, x)
+        elif isinstance(obj, dict):
+            for x in obj:
+                v = obj[x]
+                if hasattr(v, '__iter__'):
+                    yield u'%s%s:' % (u' ' * lvl, x)
+                    for v1 in toyaml(v, lvl+1):
+                        yield v1
+                elif v == u'':
+                    yield u'%s%s: ""' % (u' ' * lvl, x)
+                else:
+                    yield u'%s%s: %s' % (u' ' * lvl, x, v)
+
+    with open(fi, 'wb') as f:
+        s = u'\n'.join(list(toyaml(obj)))
+        if debug:
+            print s
+        else:
+            f.write(s.encode('utf8'))
+    print '%s saved' % fi
+
+
+def yread(fi):
+    with open(fi) as f:
+        for li in f:
+            if '#' in li[0]:
+                continue
+            yield li.replace('\n', '').decode('utf8')
 
 
 if __name__ == '__main__':

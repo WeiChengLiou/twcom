@@ -1,44 +1,29 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from twcom.utils import *
-from twcom.query import *
-import test.test_query as tq
-import test.test_rank as trank
-import unittest
-import inspect
+import networkx as nx
+import calComNet as cn
 
 
-name = [u'王雪紅']
-ids = ['04278323', '28428379', u'XX基金會']
-ids = ['03538906', '財團法人生物技術開發中心']
+g = nx.random_graphs.erdos_renyi_graph(1000, 0.1)
+# print g.order(), g.size()
+
+# ret = nx.closeness_centrality(g)
+# print ret
+# 
+# ret = cn.closeness_centrality_parallel(g)
+# print ret
 
 
-#tq.test_comboss()
-
-# 產生公司關係圖
-#tq.test_com_network()
-
-# 產生董監事關係圖
-#tq.test_boss_network()
-
-
-# 排行榜
-# suite = (unittest.TestLoader()
-#          .loadTestsFromTestCase(trank.rankTestCase))
-# unittest.TextTestRunner(verbosity=2).run(suite)
-
-
-def trytest(func):
-    def run(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except:
-            print_exc()
-            set_trace()
-    return run
-
-
-def test():
-    print 'test'
-
+if __name__ == '__main__':
+    import timeit
+    print timeit.timeit(
+        "nx.closeness_centrality(g)",
+        setup="from __main__ import nx, g",
+        number=3,
+        )
+    print timeit.timeit(
+        "cn.closeness_centrality_parallel(g)",
+        setup="from __main__ import cn, g",
+        number=3,
+        )
