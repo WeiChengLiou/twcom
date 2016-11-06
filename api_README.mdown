@@ -54,7 +54,7 @@ Return Company network with node, edge informations
 
     * node size: normalize of degree centrality
     * node color: 各公司董監事成員中，與被查詢公司董監事重複者給定一顏色; 其餘公司另給定顏色。
-    * link width: 
+    * link width:
         seat: number of seats,
         seatratio: seat ratio
 
@@ -156,4 +156,3 @@ twfund capital   財團/社團法人資本額排名 (TBD)
 
         {'name': company name,
          'boards': list of dicts, boss informations.}
-        

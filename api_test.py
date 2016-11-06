@@ -5,10 +5,9 @@ import requests
 import json
 from random import choice
 from traceback import print_exc
-from pdb import set_trace
 
 site = u'http://localhost:4000/'
-#site = u'http://dataing.pw/'
+# site = u'http://dataing.pw/'
 
 id = '03064421'
 name = u'王雪紅'
@@ -26,19 +25,18 @@ urls = [
     u'com?id={id}',
     u'com?comboss={id}',
     u'com?comaddr={id}',
-    u'boss?id={id}',
+    u'boss?bossid={bossid}',
     ]
 
 
 for rankby in ('ivst', 'sons', 'inst', 'bosscoms'):
     url = u'rank?data=twcom&rankby={rankby}&n=10'.format(
-            rankby=rankby)
+        rankby=rankby)
     urls.append(url)
 
 
 def test(k, url0):
     url = site+url0
-    print k, url.encode('utf8')
     req = requests.get(url)
     try:
         print req.text[:1000]
@@ -46,13 +44,13 @@ def test(k, url0):
     except:
         print_exc()
         print req.text
-        raise Exception()
+        raise Exception(k, url0)
 
 
 dic = {k: test(k, v) for k, v in urls0.iteritems()}
 urls[0] = urls[0].format(name=choice(dic['board']['boards'])['name'])
 urls[1] = urls[1].format(target=choice(dic['board']['boards'])['target'])
-for i in xrange(2, 6):
+for i in xrange(2, 5):
     urls[i] = urls[i].format(id=choice(dic['com'].keys()))
+urls[5] = urls[5].format(bossid=choice(dic['boss'])['_id'])
 [test(i, v) for i, v in enumerate(urls)]
-

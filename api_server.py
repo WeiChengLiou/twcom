@@ -3,11 +3,10 @@
 
 import logging
 from flask import Flask
-from flask.ext import restful
+import flask_restful as restful
 from twcom import query
-from flask.ext.restful import reqparse
+from flask_restful import reqparse
 import json
-from pdb import set_trace
 
 
 def setlogger():
@@ -145,4 +144,3 @@ api.add_resource(Root, '/')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=4000, debug=True)
-
