@@ -6,13 +6,18 @@ Return Company network with node, edge informations
 
 1. Query by **company id**
 
-    Syntax: url/com?id=&maxlvl=&lineunit=
+    Syntax: *url*/com?id=&maxlvl=&lineunit=
 
     Input:
 
     * id: company id
-    * maxlvl: (Optional) max levels
-    * lineunit: (Optional) ['bossCnt', 'bossJac', 'ivstCnt', 'ivstRatio'], default: 'ivstCnt'
+    * maxlvl: (Optional) network max levels
+    * lineunit: (Optional) network link definition. Default: 'ivstCnt'. Here's options provided:
+
+        bossCnt: link by number of the same boards
+        bossJac: link by Jaccard ratio of boards
+        ivstCnt: link by number of boards represented by institutional investment
+        ivstRatio: link by ratio of boards represented by institutional investment
 
     Output:
 
@@ -23,7 +28,7 @@ Return Company network with node, edge informations
 
 2. Query by **boss name**
 
-    Sytax: url/com?boss=&target=&lineunit=
+    Sytax: *url*/com?boss=&target=&lineunit=
 
     Input:
 
@@ -42,7 +47,7 @@ Return Company network with node, edge informations
 
 3. Query by **boards of the same company**
 
-    Syntax: url/com?comboss=&maxlvl=&lineunit=
+    Syntax: *url*/com?comboss=&maxlvl=&lineunit=
 
     Input:
 
@@ -61,7 +66,7 @@ Return Company network with node, edge informations
 
 4. Query by **address of the company**
 
-    Syntax: url/com?comaddr=&maxlvl=&lineunit=
+    Syntax: *url*/com?comaddr=&maxlvl=&lineunit=
 
     Input:
 
@@ -80,7 +85,7 @@ Return Company network with node, edge informations
 
 1. Query by **boss id**
 
-    Syntax: url/boss?bossid=&maxlvl=
+    Syntax: *url*/boss?bossid=&maxlvl=
 
     Input:
 
@@ -96,7 +101,7 @@ Return Company network with node, edge informations
 
 ## 排行榜查詢
 
-Syntax: url/rank?data=&rankby=&n=
+Syntax: *url*/rank?data=&rankby=&n=
 
 Input:
 
@@ -126,7 +131,7 @@ twfund capital   財團/社團法人資本額排名 (TBD)
 
 1. Query boss by similar name (in SQL: "name like '%boss%'")
 
-    Syntax: url/query?boss=<boss name>
+    Syntax: *url*/query?boss=<boss name>
 
     Input: boss name
 
@@ -137,7 +142,7 @@ twfund capital   財團/社團法人資本額排名 (TBD)
 
 2. Query company name and id by similar company name (in SQL: "name like '%name%'")
 
-    Syntax: url/query?com=<company name>
+    Syntax: *url*/query?com=<company name>
 
     Input: company name
 
@@ -148,7 +153,7 @@ twfund capital   財團/社團法人資本額排名 (TBD)
 
 3. Query board list by company id
 
-    Syntax: url/query?board=<id>
+    Syntax: *url*/query?board=<id>
 
     Input: id
 
