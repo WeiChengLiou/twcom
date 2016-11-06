@@ -621,7 +621,7 @@ def getComNet(ids, maxlvl=1, **kwargs):
 
         cond['$or'] = [{'src': {'$in': ids}},
                        {'dst': {'$in': ids}}]
-        ret = db.comivst.find(cond, {'_id': 0})
+        ret = db.comivst.find(cond, {'_id': 0, 'death': 0})
 
         for r in it.ifilter(f, ret):
             if r['src'] not in items:
