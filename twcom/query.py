@@ -95,10 +95,10 @@ def get_boss_network(**kwargs):
 
         return G, coms, newlvl
 
-    G, coms, newlvl = \
-        reduce(lambda x, y: subgraph(*x),
-               xrange(maxlvl + 1),
-               (G, coms, 0))
+    G, coms, newlvl = reduce(
+        lambda x, y: subgraph(*x),
+        xrange(maxlvl + 1),
+        (G, coms, 0))
     return G
 
 
