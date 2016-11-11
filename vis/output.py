@@ -56,9 +56,10 @@ def exp_graph(G, **kwargs):
 
     if 'fi' in kwargs:
         jsonfi = join(kwargs.get('path', ''), kwargs.get('fi') + '.json')
-        json.dump(dicBig, open(jsonfi, 'wb'))
+        json.dump(dicBig, open(jsonfi, 'wb'),
+                  encoding='utf8', ensure_ascii=False)
     else:
-        return json.dumps(dicBig)
+        return dicBig
 
 
 if __name__ == '__main__':

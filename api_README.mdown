@@ -12,7 +12,7 @@ Return Company network with node, edge informations
 
     * id: company id
     * maxlvl: (Optional) network max levels
-    * lineunit: (Optional) network link definition. Default: 'ivstCnt'. Here's options provided:
+    * lineunit: (Optional) line width definition. Default: 'ivstCnt'. Here's options provided:
 
         bossCnt: link by number of the same boards
         bossJac: link by Jaccard ratio of boards
@@ -34,7 +34,10 @@ Return Company network with node, edge informations
 
     * boss: boss name
     * target: (Optional) boss ONLY id
-    * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
+    * lineunit: (Optional) line width definition. Default: 'seat'. Here's options provided:
+    
+        seat: number of seats
+        seatratio: ratio of seats
 
     當指定 target 參數後，不需要指定 boss 參數
 
@@ -53,7 +56,10 @@ Return Company network with node, edge informations
 
     * comboss: company id
     * maxlvl: (Optional) max levels
-    * lineunit: (Optional) line width, can be one of ['seat', 'seatratio']. Default = seat
+    * lineunit: (Optional) line width definition. Default: 'seat'. Here's options provided:
+    
+        seat: number of seats
+        seatratio: ratio of seats
 
     Output:
 
@@ -72,7 +78,10 @@ Return Company network with node, edge informations
 
     * comaddr: company id
     * maxlvl: (Optional) max levels
-    * lineunit: (Optional) can be 'seat'' or 'seatratio', Default=seat
+    * lineunit: (Optional) line width definition. Default: 'seat'. Here's options provided:
+    
+        seat: number of seats
+        seatratio: ratio of seats
 
     Output:
 
@@ -118,8 +127,8 @@ Output:
 ====== ========= =====================================
 data   rankby    Description
 ====== ========= =====================================
-twcom  ivst      公司直接投資數排名
-twcom  sons      公司子孫數排名
+twcom  ivst      公司直接投資數排名 (TBD)
+twcom  sons      公司子孫數排名 (TBD)
 twcom  bosscoms  董監事任職公司數排名
 twcom  inst      董監事擔任法人代表數排名
 twcom  capital   公司資本額排名 (TBD)

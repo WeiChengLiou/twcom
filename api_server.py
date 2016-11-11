@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from flask import Flask
+from flask import Flask, Response
 import flask_restful as restful
 from twcom import query
 from flask_restful import reqparse
-import json
+from flask import json
 
 
 def setlogger():
@@ -33,6 +33,8 @@ def setlogger():
 
 setlogger()
 app = Flask(__name__)
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+app.config['JSON_AS_ASCII'] = False
 api = restful.Api(app)
 
 compars = reqparse.RequestParser()
@@ -56,7 +58,7 @@ qrypars.add_argument('board', type=unicode)
 rankpars = reqparse.RequestParser()
 rankpars.add_argument('data', type=unicode)
 rankpars.add_argument('rankby', type=unicode)
-rankpars.add_argument('n', type=int)
+rankpars.add_argument('n', type=int, default=10)
 
 
 class ComNetwork(restful.Resource):
@@ -92,14 +94,14 @@ class ComNetwork(restful.Resource):
             print args
             raise Exception('Unknown parameter')
 
-        return query.exp_company(G)
+        return json.jsonify(query.exp_company(G))
 
 
 class BossNetwork(restful.Resource):
     def get(self):
         args = bospars.parse_args()
         G = query.get_boss_network(target=args['bossid'], maxlvl=1)
-        return query.exp_boss(G)
+        return json.jsonify(query.exp_boss(G))
 
 
 class Query(restful.Resource):
@@ -119,14 +121,14 @@ class Query(restful.Resource):
             print args
             raise Exception('Unknown parameter')
 
-        return json.dumps(dic)
+        return json.jsonify(dic)
 
 
 class Rank(restful.Resource):
     def get(self):
         args = rankpars.parse_args()
         nlim = min(args['n'], 2000)
-        return json.dumps(query.getRanking(
+        return json.jsonify(query.getRanking(
             args['data'], args['rankby'], nlim))
 
 
