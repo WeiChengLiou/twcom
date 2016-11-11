@@ -4,7 +4,7 @@
 import cPickle
 from bson.objectid import ObjectId
 from utils import db, init, logger, getnamedic
-from work import pdic, getitem, deprecated, getdf, fixname
+from work import show, getitem, deprecated, getdf, fixname
 from work import flatten
 import numpy as np
 import itertools as it
@@ -35,7 +35,7 @@ def get_boss_network(**kwargs):
         try:
             return list(it.ifilter(lambda r: r.get('target'), boards))
         except:
-            print pdic(boards)
+            show(boards)
             print_exc()
 
             raise Exception('boards error')
@@ -138,7 +138,6 @@ def get_network(ids, maxlvl=1, **kwargs):
     map(G.add_node, ids)
 
     items = {id: 0 for id in ids}
-    f = lambda r: not G.has_edge(r['src'], r['dst'])
 
     def subgraph(G, ids, lvl):
         newlvl = lvl + 1
@@ -149,7 +148,8 @@ def get_network(ids, maxlvl=1, **kwargs):
                        {'dst': {'$in': ids}}]
         ret = db.ComBosslink.find(cond, {'_id': 0})
 
-        for r in it.ifilter(f, ret):
+        for r in it.ifilter(lambda r: not G.has_edge(r['src'], r['dst']),
+                            ret):
             if r['src'] not in items:
                 items[r['src']] = newlvl
             if r['dst'] not in items:
@@ -212,11 +212,12 @@ def get_boss(id, ind=False):
     bconds = [(lambda b: b['name'] not in bad_boards)]
     if ind:
         bconds.append((lambda b: u'獨立' not in b['title']))
-    fun = lambda b: all(map(lambda f: f(b), bconds))
 
     ret = db.cominfo.find({'id': id}, {'_id': 0, 'name': 1, 'boards': 1})
     for r in ret:
-        r['boards'] = list(it.ifilter(fun, r['boards']))
+        r['boards'] = list(it.ifilter(
+            lambda b: all(map(lambda f: f(b), bconds)),
+            r['boards']))
         [r1.__setitem__('target', str(r1['target'])) for r1 in r['boards']]
         return r
 
@@ -251,9 +252,9 @@ def getcomboss(ids):
         ids = [ids]
 
     ret = db.cominfo.find({'id': {'$in': ids}})
-    f = lambda boss: boss.get('target')
     for r in ret:
-        for boss in it.ifilter(f, r['boards']):
+        for boss in it.ifilter(lambda boss: boss.get('target'),
+                               r['boards']):
             yield boss['target']
 
 
@@ -393,8 +394,8 @@ def showkv(id, name, info=None):
     else:
         coldic = [('id', u'統一編號'), ('name', u'公司名稱'),
                   ('status', u'公司狀況'), ('eqtstate', u'股權狀況')]
-        fun = lambda col: col in info
-        for col, colname in it.ifilter(fun, coldic):
+        for col, colname in it.ifilter(lambda col: col in info,
+                                       coldic):
             s1.append(u'%s: %s' % (colname, unicode(info[col])))
 
     # Because board maybe None, or DataFrame,
@@ -458,40 +459,8 @@ def getli(k, x):
 def fill_boss_info(G):
     # Fill boss info
 
-    # [x.pop('_id') for x in G.node.values() if '_id' in x]
-
-    # ids = set()
-    # [ids.update(getli(k, x)) for k, x in G.node.iteritems()]
-    # ids = tuple(ids)
-    # namedic = getnamedic(ids)
-
-    # targets = tuple(G.node.keys())
-    # dic = defaultdict(list)
-    # ret = db.bossnode.find({'_id': {'$in': targets}})
-    # orgs = tuple(set(it.chain.from_iterable(getitem(ret, 'orgs'))))
-    # ret = db.cominfo.find({'id': {'$in': orgs}})
-
-    # for r in ret:
-    #     for b in r['boards']:
-    #         if b.get('target'):
-    #             dic[b['target']].append((r['id'], b['title']))
-
     for k, node in G.node.iteritems():
-        # grpli = [node['name']]
-        # for id, grp in it.groupby(sorted(dic[k]), lambda x: x[0]):
-        #     com = namedic[id]
-        #     grp = tuple(grp)
-        #     if len(grp) > 1:
-        #         print 'Multiplicate group', node['name'], id, pdic(grp)
-        #         grpli.append(u'\n'.join(
-        #             [u'\t'.join([com, x[1]]) for x in grp
-        #                 if x[1] != u'法人代表']
-        #         ))
-        #     else:
-        #         grpli.append(u'\t'.join([com, grp[0][1]]))
-        # node['titles'] = grpli[1:]
         node['tooltip'] = u'\n'.join([node['name'], node['titles']])
-        # node['size'] = len(node['orgs'])
 
     for k, v in G.node.iteritems():
         assert('titles' in v)
@@ -612,7 +581,6 @@ def getComNet(ids, maxlvl=1, **kwargs):
     map(G.add_node, ids)
 
     items = {id: 0 for id in ids}
-    f = lambda r: not G.has_edge(r['src'], r['dst'])
 
     def subgraph(G, ids, lvl):
         newlvl = lvl + 1
@@ -623,7 +591,8 @@ def getComNet(ids, maxlvl=1, **kwargs):
                        {'dst': {'$in': ids}}]
         ret = db.comivst.find(cond, {'_id': 0, 'death': 0})
 
-        for r in it.ifilter(f, ret):
+        for r in it.ifilter(lambda r: not G.has_edge(r['src'], r['dst']),
+                            ret):
             if r['src'] not in items:
                 items[r['src']] = newlvl
             if r['dst'] not in items:

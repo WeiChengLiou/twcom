@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from twcom.query import *
+from twcom.work import show
 from vis import output as opt
 
 
@@ -8,7 +9,7 @@ def test_comboss():
     id = getid(u'東賢投資有限公司')
     print id
     names, coms = zip(*[x.split('\t') for x in getcomboss(id)])
-    sprint(names)
+    show(names)
     comdic = defaultdict(int)
     ret = cn.bossnode.find({'name': {'$in': names},
                             'coms': {'$in': [id]}})
@@ -56,5 +57,3 @@ def test_com_network():
     exp_company(G, fi=fi, path=path)
     opt.write_d3(fi, path=path)
     print 'export company network'
-    
-

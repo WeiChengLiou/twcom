@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import pandas as pd
 import re
 import sys
 import gzip
@@ -15,7 +14,7 @@ from datetime import datetime
 from pymongo.errors import DuplicateKeyError
 import time
 from work import yload, replaces, ysave, get_funname, chunk, groupdic
-from work import deprecated, trytest, pdic
+from work import deprecated, trytest
 from utils import db, logger, getbadcoms
 CONFIG = yaml.load(open('config.yaml'))
 path = 'files'
@@ -24,7 +23,6 @@ path = '{0}/files'.format(CONFIG['src'])
 print path
 errcol = {}
 errid = {}
-print pdic(pd.__version__)
 
 
 # 取得 json 欄位定義
@@ -291,7 +289,10 @@ def readg(fi):
 def runjobs(*args):
     # 逐檔案、逐 json item 執行給定函數
     kvs = it.chain.from_iterable(it.imap(readg, fis))
-    f1 = lambda kv: map(lambda fun: fun(kv), args)
+
+    def f1(kv):
+        return map(lambda fun: fun(kv), args)
+
     map(f1, kvs)
 
 
@@ -439,8 +440,8 @@ def ins_comivsts():
         ('src', 1), ('dst', 1)])
     comall = set()
     [comall.add(r['id']) for r in db.boards.find()]
-    fun = lambda coms: ins_comivst(coms, badcoms)
-    map(fun, chunk(list(comall), 200))
+    map(lambda coms: ins_comivst(coms, badcoms),
+        chunk(list(comall), 200))
 
 
 def ins_comivst(coms, badcoms):

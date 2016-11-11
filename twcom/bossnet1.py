@@ -236,8 +236,6 @@ def adj_bossnode(names, cn1):
                 if ids:
                     cn1.bossnode.remove({'_id': {'$in': ids}})
 
-        #sprint(li)
-
 
 def getcoms():
     """get funds id"""

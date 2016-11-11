@@ -60,14 +60,22 @@ def setComnetBoss(badcoms):
 
 
 def addBoard(obj, instid, names):
-    f1 = lambda name: name not in bad_boards
+    def f1(name):
+        return name not in bad_boards
+
     obj.add(instid, list(it.ifilter(f1, names)))
 
 
 def chkBoard(obj, instid, names, badcoms):
-    f1 = lambda name: name not in bad_boards
-    f2 = lambda name: name not in obj.xdic[instid]
-    f = lambda name: f1(name) and f2(name)
+    def f1(name):
+        return name not in bad_boards
+
+    def f2(name):
+        return name not in obj.xdic[instid]
+
+    def f(name):
+        return f1(name) and f2(name)
+
     names = list(it.ifilter(f, names))
     if names:
         print u','.join(names)
@@ -193,7 +201,10 @@ def insbosslink(bossobj):
 def updboards(obj, G, bossdic):
     print get_funname()
     ret = db.cominfo.find({'boardcnt': {'$gt': 0}})
-    fun = lambda boss: boss['name'] not in bad_boards
+
+    def fun(boss):
+        return boss['name'] not in bad_boards
+
     for r in ret:
         for boss in r['boards']:
             if fun(boss):
