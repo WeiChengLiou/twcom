@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from flask import Flask, Response
+from flask import Flask
 import flask_restful as restful
 from twcom import query
 from flask_restful import reqparse
