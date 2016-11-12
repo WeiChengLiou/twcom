@@ -7,7 +7,7 @@ from random import choice
 from traceback import print_exc
 
 site = u'http://localhost:4000/'
-# site = u'http://dataing.pw/'
+# site = u'http://106.187.49.17/'
 
 id = '03064421'
 name = u'王雪紅'
@@ -40,7 +40,7 @@ def test(k, url0):
     req = requests.get(url)
     try:
         print req.text[:1000]
-        return json.loads(req.json())
+        return json.loads(req.text)
     except:
         print_exc()
         print req.text
