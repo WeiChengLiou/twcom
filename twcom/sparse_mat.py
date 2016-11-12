@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pdb import set_trace
 from collections import defaultdict
 import itertools as it
 
@@ -55,10 +54,10 @@ class sparse_mat(object):
         try:
             return float(len(self.intersec(x1, x2))) /\
                 len(self.xdic[x1].union(self.xdic[x2]))
-        except:
+        except Exception as e:
             print x1, self.xdic[x1]
             print x2, self.xdic[x2]
-            set_trace()
+            raise e
 
     def intersec(self, x1, x2):
         return self.xdic[x1].intersection(self.xdic[x2])
@@ -86,16 +85,17 @@ def test():
            'd': {4, 7}
            }
     obj = sparse_mat.fromdict(dic)
-    # print obj.get_xlike('a')
-    # print obj.get_xlike('c')
-    # print obj.get_ylike(2)
-    # print obj.xdic
-    # print obj.ydic
+    print obj.get_xlike('a')
+    print obj.get_xlike('c')
+    print obj.get_ylike(2)
+    print obj.xdic
+    print obj.ydic
 
-    # print sorted(obj.nodes)
-    # for l in obj.links:
-    #     print l, obj.xdic[l[0]], obj.xdic[l[1]], obj.jaccard(*l), len(obj.intersec(*l))
-    
+    print sorted(obj.nodes)
+    for l in obj.links:
+        print (l, obj.xdic[l[0]], obj.xdic[l[1]],
+               obj.jaccard(*l), len(obj.intersec(*l)))
+
 
 if __name__ == '__main__':
     test()
