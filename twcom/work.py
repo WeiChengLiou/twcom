@@ -154,11 +154,13 @@ def ysave(obj, fi, debug=0):
 
 
 def yread(fi):
+    ret = []
     with open(fi) as f:
         for li in f:
             if '#' in li[0]:
                 continue
-            yield li.replace('\n', '').decode('utf8')
+            ret.append(li.replace('\n', '').decode('utf8'))
+    return ret
 
 
 if __name__ == '__main__':

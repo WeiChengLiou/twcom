@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import cPickle
 from bson.objectid import ObjectId
-from utils import db, init, logger, getnamedic
+from utils import db, init, logger, getnamedic, chk_board
 from work import show, getitem, deprecated, getdf, fixname
 from work import flatten
 import numpy as np
@@ -16,7 +15,6 @@ from collections import defaultdict
 from vis import output as opt
 import yaml
 CONFIG = yaml.load(open('config.yaml'))
-bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
 
 
 # Basic{{{
@@ -209,7 +207,7 @@ def get_boss(id, ind=False):
     # get boss list by company id
     # if not hasattr(id, '__iter__'):
     #     id = [id]
-    bconds = [(lambda b: b['name'] not in bad_boards)]
+    bconds = [(lambda b: chk_board(b['name']))]
     if ind:
         bconds.append((lambda b: u'獨立' not in b['title']))
 

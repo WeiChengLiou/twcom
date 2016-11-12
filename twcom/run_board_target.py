@@ -5,14 +5,12 @@ from pdb import set_trace
 from traceback import print_exc
 from collections import defaultdict
 import itertools as it
-from twcom.work import yread, get_funname, getitem, groupdic
+from twcom.work import get_funname, getitem, groupdic
 from twcom.work import deprecated
-from twcom.utils import db, getbadcoms
+from twcom.utils import db, getbadcoms, chk_board
 from twcom.sparse_mat import sparse_mat as sm
 from twcom.groupset import groupset
 import networkx as nx
-tmpid = "00000016", u'王振林'
-bad_boards = yread('doc/bad_boards.yaml')
 
 
 def resetComnetBoss():
@@ -33,14 +31,7 @@ def setComnetBoss(badcoms):
     obj = sm()
     ret = db.cominfo.find({}, {'id': 1, 'boards': 1})
     for r in ret:
-        try:
-            addBoard(obj, r['id'], getitem(r['boards'], 'name'))
-            # if r['id'] == tmpid[0]:
-            #     print obj.xdic[tmpid[0]], obj.ydic[tmpid[1]]
-            #     set_trace()
-        except:
-            print_exc()
-            set_trace()
+        addBoard(obj, r['id'], getitem(r['boards'], 'name'))
 
     G = nx.DiGraph()
     for l in obj.links:
@@ -60,21 +51,15 @@ def setComnetBoss(badcoms):
 
 
 def addBoard(obj, instid, names):
-    def f1(name):
-        return name not in bad_boards
-
-    obj.add(instid, list(it.ifilter(f1, names)))
+    obj.add(instid, list(it.ifilter(chk_board, names)))
 
 
-def chkBoard(obj, instid, names, badcoms):
-    def f1(name):
-        return name not in bad_boards
-
+def chkBoard(obj, instid, names):
     def f2(name):
         return name not in obj.xdic[instid]
 
     def f(name):
-        return f1(name) and f2(name)
+        return chk_board(name) and f2(name)
 
     names = list(it.ifilter(f, names))
     if names:
@@ -123,7 +108,7 @@ def updivst(obj, G, badcoms, cond=None):
             l = [instid if unicode(instid) != u'0' else inst]
             if l[0] == u'':
                 continue
-            chkBoard(obj, l[0], getitem(rs, 'name'), badcoms)
+            chkBoard(obj, l[0], getitem(rs, 'name'))
 
             l.append(id)
             dic = G.get_edge_data(*l)
@@ -202,12 +187,9 @@ def updboards(obj, G, bossdic):
     print get_funname()
     ret = db.cominfo.find({'boardcnt': {'$gt': 0}})
 
-    def fun(boss):
-        return boss['name'] not in bad_boards
-
     for r in ret:
         for boss in r['boards']:
-            if fun(boss):
+            if chk_board(boss['name']):
                 try:
                     id, name = r['id'], boss['name']
                     boss['target'] = bossdic[name].getgrp(id)._id
