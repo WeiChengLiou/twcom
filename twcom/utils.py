@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import re
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pdb import set_trace
@@ -8,7 +9,7 @@ from traceback import print_exc
 import logging
 import yaml
 from os.path import exists
-from twcom.work import yload
+from twcom.work import yload, yread
 logger = logging.getLogger('twcom')
 
 # create console handler and set level to info
@@ -26,6 +27,18 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
+bad_boards = yread('doc/bad_boards.yaml')
+rx_bad_boards = re.compile(u'|'.join(bad_boards), re.UNICODE)
+
+
+def chk_board(name):
+    # Check board name are right
+    if name:
+        return not rx_bad_boards.search(name)
+    else:
+        return False
+
+
 def init(db):
     "init mongodb db class"
     pwdfi = '../pwd.yaml'
@@ -38,16 +51,6 @@ def init(db):
 
 CONFIG = yaml.load(open('config.yaml'))
 db = init(CONFIG['db'])
-
-
-def bad_board(db):
-    # get bad board name from badmark()
-    badmark = yload('doc/badmark.yaml')
-    condic = {'$or': [
-        {'name': {'$regex': key}} for key in badmark]}
-    ret = list(db.boards.find(condic, ['name']).distinct('name'))
-    ret.extend([u'', u'缺'])
-    return ret
 
 
 def getname(id):

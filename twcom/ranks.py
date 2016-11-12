@@ -3,19 +3,11 @@
 import itertools as it
 from collections import defaultdict
 import pandas as pd
-from utils import db, insitem
+from utils import db, insitem, chk_board
 from work import getdf
 from twcom import query
-from pdb import set_trace
 from bson.son import SON
 import networkx as nx
-import cPickle
-
-
-# bads = list(badstatus(db))
-# comcond = {'source': 'twcom',
-#            'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
-#            'status': {'$nin': bads}}
 
 
 def getnamedf(ids):
@@ -109,15 +101,12 @@ def ranksons(n=10):
 def rankinst(n=10):
     # 法人代表排名
 
-    bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
     df = defaultdict(int)
     ret = db.cominfo.find()
     for r in ret:
         for b in r['boards']:
-            if (b['repr_inst'] != "") and (b['name'] not in bad_boards):
+            if (b['repr_inst'] != "") and (chk_board(b['name'])):
                 key = b['name'], b['target']
-                if b['name'] == u'缺額':
-                    set_trace()
                 df[key] += 1
     df = pd.Series(df, name='cnt')
     df.sort_values(ascending=False, inplace=True)
@@ -134,10 +123,9 @@ def rankinst(n=10):
 
 def rankbosscoms(n=10):
     # 董監事代表公司數排名
-    bad_boards = cPickle.load(open('bad_boards.pkl', 'rb'))
     ret = db.bossnode.find()
     df = [{'name': r['name'], '_id': str(r['_id']), 'cnt': len(r['orgs'])}
-          for r in ret if r['name'] not in bad_boards]
+          for r in ret if chk_board(r['name'])]
     df = pd.DataFrame(df)
     df.sort_values(columns='cnt', ascending=False, inplace=True)
     df = df.head(n)

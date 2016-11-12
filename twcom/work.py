@@ -10,6 +10,7 @@ import gzip
 from traceback import print_exc
 from pdb import set_trace
 import yaml
+import json
 
 
 def timeit(func):
@@ -43,8 +44,7 @@ def chunk(x, n=1):
 
 
 def take(li, n):
-    fun = lambda y: y[0] < n
-    for i, x in it.ifilter(fun, enumerate(li)):
+    for i, x in it.ifilter(lambda y: y[0] < n, enumerate(li)):
         yield x
 
 
@@ -72,68 +72,13 @@ def strin(s1, strs):
     return False
 
 
-def sprint(args, **kwargs):
-    if 'sep' in kwargs:
-        sep = kwargs['sep']
-    else:
-        sep = u'\t'
-    if 'lvl' in kwargs:
-        lvl = kwargs['lvl']
-    else:
-        lvl = 0
-
-    if not hasattr(args, '__iter__'):
-        print u' '*lvl, unicode(args)
-        return
-    elif isinstance(args, dict):
-        for k, v in args.iteritems():
-            sprint([k, ':', v], lvl=lvl+1)
-        return
-
-    li = []
-    justPrint = True
-    for i, x in enumerate(args):
-        if i == 0:
-            if hasattr(x, '__iter__'):
-                justPrint = False
-
-        if not justPrint:
-            sprint(x, lvl=lvl+1)
-        else:
-            li.append(unicode(x))
-    if li:
-        print u' '*lvl, sep.join(li)
-
-
-def lprint(*args, **kwargs):
-    sprint(list(flatten(args)), **kwargs)
-
-
-def dicprint(args, **kwargs):
-    if 'sep' in kwargs:
-        sep = kwargs['sep']
-    else:
-        sep = u'\t'
-    for k, v in args.iteritems():
-        lprint(k, v, sep=sep)
-
-
-def pdic(dic, space=0):
-    blank = u' ' * (1+space)
-    if isinstance(dic, dict) and (len(dic) > 0):
-        li = [u'{\n']
-        for k, v in dic.iteritems():
-            li.append(u'{0}{1}:{2}'.format(blank, k, pdic(v, space+1)))
-        li.append(blank + u'}\n')
-        return u''.join(li)
-    elif hasattr(dic, '__iter__') and (not isinstance(dic, basestring))\
-            and (len(dic) > 0):
-        li = [u'[']
-        li.append(u','.join(map(pdic, dic)))
-        li.append(u']\n')
-        return u''.join(li)
-    else:
-        return u'{0}{1}\n'.format(u' '*space, dic)
+def show(dic):
+    print json.dumps(
+        dic,
+        sort_keys=True,
+        ensure_ascii=False,
+        indent=2
+    )
 
 
 def replaces(str0, words):
@@ -209,11 +154,13 @@ def ysave(obj, fi, debug=0):
 
 
 def yread(fi):
+    ret = []
     with open(fi) as f:
         for li in f:
             if '#' in li[0]:
                 continue
-            yield li.replace('\n', '').decode('utf8')
+            ret.append(li.replace('\n', '').decode('utf8'))
+    return ret
 
 
 if __name__ == '__main__':
