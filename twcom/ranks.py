@@ -34,7 +34,7 @@ def rankivst(n=10):
         {'$group': {'_id': '$src', 'cnt': {'$sum': 1}}},
         {'$sort': SON([('cnt', -1)])},
         ])
-    df = getdf(ret['result'])
+    df = getdf(ret)
     df['rank'] = list(ranking(df['cnt']))
     df = df[df['rank'] <= n]
     df.rename(columns={'_id': 'id'}, inplace=True)
@@ -60,11 +60,14 @@ def rankCentrality(G):
 
 
 def loadall():
-    g = nx.DiGraph()
+    G = nx.DiGraph()
     ret = db.ComBosslink.find()
-    for r in ret:
+
+    def add_edge(g, r):
         g.add_edge(r['src'], r['dst'], size=r['bossCnt'])
-    return g
+        return g
+
+    return reduce(add_edge, ret, G)
 
 
 def rankcapital(n=10, cond=None):
@@ -127,7 +130,7 @@ def rankbosscoms(n=10):
     df = [{'name': r['name'], '_id': str(r['_id']), 'cnt': len(r['orgs'])}
           for r in ret if chk_board(r['name'])]
     df = pd.DataFrame(df)
-    df.sort_values(columns='cnt', ascending=False, inplace=True)
+    df.sort_values('cnt', ascending=False, inplace=True)
     df = df.head(n)
     df.index = range(len(df))
     df['rank'] = list(ranking(df['cnt']))
@@ -151,13 +154,15 @@ def insdb(coll, name, rankby, df):
 
 def inscomrank():
     coll = 'ranking'
-    # db[coll].drop()
+#     db[coll].drop()
 
-    # df = rankivst(10000)
-    # insdb(coll, 'twcom', 'ivst', df)
+    db[coll].remove({'data': 'twcom', 'rankby': 'ivst'})
+    df = rankivst(10000)
+    insdb(coll, 'twcom', 'ivst', df)
 
-    # df = ranksons(10000)
-    # insdb(coll, 'twcom', 'sons', df)
+#     db[coll].remove({'data': 'twcom', 'rankby': 'sons'})
+#     df = ranksons(10000)
+#     insdb(coll, 'twcom', 'sons', df)
 
     db[coll].remove({'data': 'twcom', 'rankby': 'inst'})
     df = rankinst(10000)
