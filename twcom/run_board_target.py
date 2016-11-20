@@ -201,6 +201,11 @@ def updboards(obj, G, bossdic):
         db.cominfo.save(r)
 
 
+def create_boss_index():
+    # db.bossnode.create_index([('name', 1), ('orgs', 1)], unique=True)
+    db.bossnode.create_index([('name', 1)], unique=False)
+
+
 if __name__ == '__main__':
     names = [u'王文洋', u'余建新', u'羅智先', u'謝國樑', u'王貴雲', u'王雪紅']
     ids = [u'75370905', u'16095002', u'73251209', u'75370601']
