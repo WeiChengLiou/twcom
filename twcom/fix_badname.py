@@ -3,41 +3,19 @@
 ##
 import re
 import pandas as pd
-from twcom.utils import db
-from twcom.work import show, replaces, yload
-pd.__version__
+from twcom.utils import db, chk_board
+from twcom.work import show, yload
+show(pd.__version__)
 
 
 ##
 # Retrieve bad name list
 
-
-##
-ret = db.raw.find_one(
-    {'$and': [
-        {u'公司名稱': {'$exists': 0}},
-        {u'分公司名稱': {'$exists': 0}},
-        {u'商業名稱': {'$exists': 0}},
-    ]},
-    {'_id': 0})
-show(ret)
-
-
-##
 # Construct (id, name) pair dictionary
+fixwords = yload('doc/fixword.yaml')
 bads = yload('doc/badstatus.yaml')
 namecol = [u'公司名稱']
-ret = db.raw.find(
-    {},
-    {'_id': 0, 'id': 1,
-     u'公司名稱': 1,
-     u'公司狀況': 1,
-     u'公司狀況文號': 1,
-     }
-)
 id_name = []
-
-
 skips = [
     u'（同名）',
     u'（無統蝙）',
@@ -53,11 +31,26 @@ skips = [
     u'有限會社',
 ]
 
+ret = db.raw.find(
+    {},
+    {'_id': 0, 'id': 1,
+     u'公司名稱': 1,
+     u'公司狀況': 1,
+     u'公司狀況文號': 1,
+     }
+)
 
-def fun(key, x):
-    x1 = replaces(x.strip(), skips)
-    if x1:
-        id_name.append(key + (x1,))
+
+def fun(key, name):
+    # fix name and added
+
+    def fixword(x, ys):
+        return x.replace(ys[0], ys[1])
+
+    name1 = reduce(fixword, fixwords, name).strip()
+
+    if name1:
+        id_name.append(key + (name1,))
 
 
 for r in ret:
@@ -102,7 +95,7 @@ dbl_id = (
 
 ##
 # Study bad company name
-def ing_badname():
+def study_badname():
     li = []
     rx = re.compile(u'([\(（].*?[\)）])', re.UNICODE)
 
@@ -118,11 +111,51 @@ def ing_badname():
 
 
 ##
-# fix bad board name
+# get board full list
+ret = db.raw.find(
+    {u'董監事名單': {'$exists': 1}},
+    {'_id': 0, u'董監事名單': 1, 'id': 1}
+)
+boards = []
+for r in ret:
+    for dic in r[u'董監事名單']:
+        dic['id'] = r['id']
+        boards.append(dic)
+boards = pd.DataFrame(boards)
 
 
 ##
-# fix bad inst id/name
+# fix inst id/name
+inst = boards[boards[u'所代表法人'] != ""][u'所代表法人']
+df1 = pd.DataFrame(inst.values.tolist(), columns=['id', 'inst'])
+
+# Check non exists id
+ids = df1['id'].drop_duplicates()
+id2 = ids[~ids.isin(id_name['id'])]
+id2 = id2[id2 != 0]
+names = df1.ix[id2.index, 'inst'].apply(
+    lambda x: x.replace(u'股份有限公司', u''))
+rx = re.compile(u'|'.join(names), re.UNICODE)
+df2 = id_name[id_name.name.apply(lambda x: rx.search(x) is not None)]
+
+if len(df2) > 0:
+    raise Exception('Get exists name but unknown id', df2)
 
 
 ##
+# Check wrong name
+rename_dic = {}
+df2 = df1[~df1.inst.apply(chk_board)].inst.drop_duplicates()
+for x in df2:
+    rename_dic[x] = u''
+
+fixdic = yload('doc/fix_board.yaml')
+show(fixdic)
+
+
+##
+df_ = df1[df1.inst.apply(lambda x: u'監察' in x)]
+print df_
+##
+
+# fix inst as board name
