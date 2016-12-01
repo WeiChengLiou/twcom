@@ -126,14 +126,18 @@ boards = pd.DataFrame(boards)
 
 ##
 # fix inst id/name
-inst = boards[boards[u'所代表法人'] != ""][u'所代表法人']
-df1 = pd.DataFrame(inst.values.tolist(), columns=['id', 'inst'])
+inst = (
+    boards[boards[u'所代表法人'] != ""][u'所代表法人']
+    .to_frame()
+)
+inst['instid'], inst['inst'] = zip(*inst[u'所代表法人'].tolist())
+boards = boards.join(inst[['instid', 'inst']])
 
 # Check non exists id
-ids = df1['id'].drop_duplicates()
+ids = inst['id'].drop_duplicates()
 id2 = ids[~ids.isin(id_name['id'])]
 id2 = id2[id2 != 0]
-names = df1.ix[id2.index, 'inst'].apply(
+names = inst.ix[id2.index, 'inst'].apply(
     lambda x: x.replace(u'股份有限公司', u''))
 rx = re.compile(u'|'.join(names), re.UNICODE)
 df2 = id_name[id_name.name.apply(lambda x: rx.search(x) is not None)]
@@ -145,17 +149,18 @@ if len(df2) > 0:
 ##
 # Check wrong name
 rename_dic = {}
-df2 = df1[~df1.inst.apply(chk_board)].inst.drop_duplicates()
+df2 = inst[~inst.inst.apply(chk_board)].inst.drop_duplicates()
 for x in df2:
     rename_dic[x] = u''
 
-fixdic = yload('doc/fix_board.yaml')
+fixdic = dict(
+    yload('doc/fix_board.yaml').items() +
+    rename_dic.items()
+)
 show(fixdic)
 
 
 ##
-df_ = df1[df1.inst.apply(lambda x: u'監察' in x)]
-print df_
-##
-
 # fix inst as board name
+
+##
