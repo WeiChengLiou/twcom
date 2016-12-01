@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
+import numpy as np
 import re
 import pandas as pd
 from twcom.utils import db, chk_board
@@ -134,7 +135,7 @@ inst['instid'], inst['inst'] = zip(*inst[u'所代表法人'].tolist())
 boards = boards.join(inst[['instid', 'inst']])
 
 # Check non exists id
-ids = inst['id'].drop_duplicates()
+ids = inst['instid'].drop_duplicates()
 id2 = ids[~ids.isin(id_name['id'])]
 id2 = id2[id2 != 0]
 names = inst.ix[id2.index, 'inst'].apply(
@@ -148,19 +149,48 @@ if len(df2) > 0:
 
 ##
 # Check wrong name
-rename_dic = {}
-df2 = inst[~inst.inst.apply(chk_board)].inst.drop_duplicates()
-for x in df2:
-    rename_dic[x] = u''
+fixdic = yload('doc/fix_board.yaml')
 
-fixdic = dict(
-    yload('doc/fix_board.yaml').items() +
-    rename_dic.items()
+rename_dic = {}
+df2 = inst[~inst['inst'].apply(chk_board)].inst.drop_duplicates()
+for x in df2:
+    if x not in fixdic:
+        rename_dic[x] = u''
+fixdic.update(rename_dic)
+
+fixdic = (
+    pd.Series(fixdic)
+    .to_frame()
+    .reset_index()
+    .rename(columns={
+        'index': 'name',
+        0: 'fix',
+    })
 )
-show(fixdic)
+# show(fixdic)
+
+
+##
+# remove bad board name
+ret = boards[~boards[u'姓名'].apply(chk_board)]
+boards.ix[ret.index, u'姓名'] = u''
 
 
 ##
 # fix inst as board name
+ret = (
+    boards
+    .merge(
+        fixdic.rename(columns={'name': 'inst'}),
+        how='left'
+    )
+)
+ret['fix'] = ret['fix'].fillna(ret['inst'])
+ret = (
+    ret
+    .drop('inst', axis=1)
+    .rename(columns={'fix': 'inst'})
+)
+
 
 ##
