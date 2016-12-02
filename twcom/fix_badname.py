@@ -193,3 +193,24 @@ ret = (
 
 
 ##
+# (Optional)
+# Drop inst_id which has empty inst
+
+
+##
+# Fix wrong inst based on instid
+ret = (
+    boards
+    .merge(id_name
+           [['id', 'name']]
+           .rename(columns={
+               'id': 'instid',
+           })
+           )
+)
+
+idx = ret[ret['inst'] != ret['name']].index
+ret.ix[idx, 'inst'] = ret.ix[idx, 'name']
+
+
+##
