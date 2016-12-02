@@ -211,6 +211,7 @@ ret = (
 
 idx = ret[ret['inst'] != ret['name']].index
 ret.ix[idx, 'inst'] = ret.ix[idx, 'name']
+boards = ret.drop('name', axis=1)
 
 
 ##
