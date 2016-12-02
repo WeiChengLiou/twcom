@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
-import numpy as np
 import re
 import pandas as pd
 from twcom.utils import db, chk_board
