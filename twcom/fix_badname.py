@@ -111,7 +111,7 @@ def study_badname():
 
 
 ##
-# get board full list
+# Get board full list
 ret = db.raw.find(
     {u'董監事名單': {'$exists': 1}},
     {'_id': 0, u'董監事名單': 1, 'id': 1}
@@ -125,7 +125,7 @@ boards = pd.DataFrame(boards)
 
 
 ##
-# fix inst id/name
+# Fix inst id/name
 inst = (
     boards[boards[u'所代表法人'] != ""][u'所代表法人']
     .to_frame()
@@ -170,13 +170,13 @@ fixdic = (
 
 
 ##
-# remove bad board name
+# Remove bad board name
 ret = boards[~boards[u'姓名'].apply(chk_board)]
 boards.ix[ret.index, u'姓名'] = u''
 
 
 ##
-# fix inst as board name
+# Fix inst as board name
 ret = (
     boards
     .merge(
@@ -190,11 +190,6 @@ ret = (
     .drop('inst', axis=1)
     .rename(columns={'fix': 'inst'})
 )
-
-
-##
-# (Optional)
-# Drop inst_id which has empty inst
 
 
 ##
@@ -212,6 +207,15 @@ ret = (
 idx = ret[ret['inst'] != ret['name']].index
 ret.ix[idx, 'inst'] = ret.ix[idx, 'name']
 boards = ret.drop('name', axis=1)
+
+
+##
+# Find inst with empty instid
+ret = (
+    boards[boards['inst'].notnull()]
+)
+ret = ret[ret['instid'].isnull()]
+assert len(ret) == 0
 
 
 ##
