@@ -190,21 +190,33 @@ ret = (
     .drop('inst', axis=1)
     .rename(columns={'fix': 'inst'})
 )
+boards = ret
+
+
+##
+iddic = (
+    id_name
+    .groupby('id')
+    ['name']
+    .first()
+    .reset_index()
+)
 
 
 ##
 # Fix wrong inst based on instid
 ret = (
     boards
-    .merge(id_name
-           [['id', 'name']]
-           .rename(columns={
-               'id': 'instid',
-           })
-           )
+    .merge(
+        iddic
+        .rename(columns={
+            'id': 'instid',
+        }),
+        how='left'
+    )
 )
 
-idx = ret[ret['inst'] != ret['name']].index
+idx = ret[(ret['inst'] != ret['name']) & ret['name'].notnull()].index
 ret.ix[idx, 'inst'] = ret.ix[idx, 'name']
 boards = ret.drop('name', axis=1)
 
