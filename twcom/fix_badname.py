@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
+import numpy as np
 import re
 import pandas as pd
 from twcom.utils import db, chk_board
@@ -79,6 +80,7 @@ for r in ret:
 id_name = (
     pd.DataFrame(id_name, columns=['id', 'status', 'word', 'name'])
 )
+id_name['source'] = 'cominfo'
 
 
 df1 = id_name[~id_name.status.isin(bads)]
@@ -185,6 +187,10 @@ ret = (
     )
 )
 ret['fix'] = ret['fix'].fillna(ret['inst'])
+
+# Remove instid which remove inst too
+ret.ix[(ret['fix'] == u'') & (ret['instid'] == 0), 'instid'] = np.nan
+
 ret = (
     ret
     .drop('inst', axis=1)
@@ -223,11 +229,35 @@ boards = ret.drop('name', axis=1)
 
 ##
 # Find inst with empty instid
-ret = (
-    boards[boards['inst'].notnull()]
-)
+ret = boards[
+    (boards['inst'].notnull()) &
+    (boards['inst'] != u'')
+]
+
 ret = ret[ret['instid'].isnull()]
 assert len(ret) == 0
+
+
+##
+# Export instid==0 list
+ret = (
+    boards[boards['instid'] == 0]
+)
+orgs = ret['inst'].value_counts().sort_index()
+orgs.to_csv('doc/org_list.csv', encoding='utf8', sep='\t')
+
+
+##
+# Generate organization list
+orglist = (
+    orgs
+    .reset_index()
+    .drop('inst', axis=1)
+    .rename(columns={'index': 'name'})
+)
+orglist['id'] = orglist['name']
+orglist['source'] = 'org'
+id_name = pd.concat([id_name, orglist]).reset_index(drop=True)
 
 
 ##
