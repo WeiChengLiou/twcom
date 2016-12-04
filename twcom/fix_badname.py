@@ -45,7 +45,7 @@ ret = db.raw.find(
 )
 
 
-def fun(key, name):
+def fun(id_name, key, name):
     # fix name and added
 
     def f_fixword(x, ys):
@@ -69,15 +69,16 @@ for r in ret:
     status = r[u'公司狀況']
     id = r['id']
     key = (id, status, word)
+
     if isinstance(name, list):
         for x in name:
             if isinstance(x, basestring):
-                fun(key, x)
+                fun(id_name, key, x)
             else:
                 for x1 in x:
-                    fun(key, x1)
+                    fun(id_name, key, x1)
     elif isinstance(name, basestring):
-        fun(key, name)
+        fun(id_name, key, name)
 
 
 id_name = (
@@ -324,7 +325,106 @@ for i, df_ in ret.iterrows():
 
 
 ##
+"""
+處理以法人代表名稱尋找對應 id 的問題時，
+會以 id-name 清單作為對照確認。
+
+第一個問題是一個名稱可能有多個 id。
+這有部份是來自於公司併購：例如元大期貨。
+所以單純的透過比較該 id 是否在已有清單內時，
+就會有可能該 id 以解散的問題。
+若是進一步比較董監事名單時，
+可能就會比較容易驗證。
+所以建立 id-name 清單時，
+應以存活公司為主，
+從董監事人數資訊應該可以協助判斷。
+"""
+##
+# Get board count
+board_cnt = (
+    boards
+    .groupby('id')
+    [u'姓名']
+    .count()
+    .to_dict()
+)
+
+
+##
 # Fix instid with inst
+ret = (
+    boards[
+        (~boards['inst'].isin(dbls)) &
+        (boards['inst'].notnull()) &
+        (boards['inst'] != u'') &
+        (boards['instid'] != 0)
+    ]
+    [['id', 'instid', 'inst']]
+    .drop_duplicates()
+    .merge(
+        id_name
+        [id_name['name'].isin(ret['inst'])]
+        .groupby('name')
+        .apply(lambda x: list(x['id']))
+        .rename('uid_list')
+        .reset_index()
+        .rename(columns={'name': 'inst'}),
+        how='left'
+    )
+    .dropna()
+)
+
+
+##
+li = []
+
+for i, df_ in ret.iterrows():
+    instid, inst = df_['instid'], df_['inst']
+    ids = df_['uid_list']
+
+    if (instid in df_['uid_list']):
+        if len(ids) == 1:
+            continue
+        status = (
+            id_name.ix[
+                id_name['id'] == instid
+            ]
+            .iloc[0]
+            ['status']
+        )
+        if status not in bads:
+            continue
+        if (board_cnt.get(instid)):
+            continue
+
+    # Check boards coverage count
+    dic = (
+        boards
+        [boards['id'].isin(ids)]
+        .groupby('id')
+        .apply(lambda x: set(x[u'姓名']))
+    )
+    if (len(dic) == 0):
+        if (instid in df_['uid_list']):
+            continue
+        msg = (u'Warning: empty boards - %s' % inst).encode('utf8')
+        raise Exception(msg)
+
+    board0 = set(boards[boards['id'] == df_['id']][u'姓名'])
+    covers = dic.apply(lambda x: len(x & board0))
+    if (covers.max() == 0):
+        if (instid in df_['uid_list']):
+            continue
+        msg = (u'Warning: no match boards - %s' % inst).encode('utf8')
+        raise Exception(msg)
+    instid1 = covers.argmax()
+    li.append(
+        dict(df_.to_dict().items() + [('fix', instid1)])
+    )
+
+# 目前因無符合條件公司，故暫時不處理。
+if len(li) > 0:
+    raise Exception('Happen fix instid case')
 
 
 ##
