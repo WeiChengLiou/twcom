@@ -10,6 +10,23 @@ show(pd.__version__)
 
 
 ##
+# Check distribution of series
+def chkdist(s):
+    name = s.name
+    ret1 = (
+        s
+        .value_counts()
+        .rename('cnt')
+        .reset_index()
+        .rename(columns={
+            'index': name,
+        })
+    )
+    ret1['len'] = ret1[name].apply(len)
+    return ret1
+
+
+##
 # Retrieve bad name list
 
 # Construct (id, name) pair dictionary
@@ -17,20 +34,6 @@ fixwords = yload('doc/fixword.yaml')
 bads = yload('doc/badstatus.yaml')
 namecol = [u'公司名稱']
 id_name = []
-skips = [
-    u'（同名）',
-    u'（無統蝙）',
-    u'（無統編）',
-    u'（股份有限公司）',
-    u'（因偽造文書撤銷公司設立登記）',
-    u'（父子）',
-    u'（新增統編）',
-    u'(在臺灣地區公司名稱)',
-    u'(在大陸地區公司名稱)',
-    u'株式會社',
-    u'■■■■■',
-    u'有限會社',
-]
 
 ret = db.raw.find(
     {},
@@ -45,10 +48,10 @@ ret = db.raw.find(
 def fun(key, name):
     # fix name and added
 
-    def fixword(x, ys):
+    def f_fixword(x, ys):
         return x.replace(ys[0], ys[1])
 
-    name1 = reduce(fixword, fixwords, name).strip()
+    name1 = reduce(f_fixword, fixwords, name).strip()
 
     if name1:
         id_name.append(key + (name1,))
@@ -83,6 +86,47 @@ id_name = (
 id_name['source'] = 'cominfo'
 
 
+##
+# Edit skip company name list
+df1 = id_name[~id_name.status.isin(bads)]
+s = chkdist(df1['name'])
+skips = [
+    u'（同名）',
+    u'（無統蝙）',
+    u'（無統編）',
+    u'（股份有限公司）',
+    u'（因偽造文書撤銷公司設立登記）',
+    u'（父子）',
+    u'（新增統編）',
+    u'(在臺灣地區公司名稱)',
+    u'(在大陸地區公司名稱)',
+    u'株式會社',
+    u'■■■■■',
+    u'有限會社',
+    u'(在台灣地區公司名稱)',
+    u'株式會社',
+    u'株式会社',
+    u'有限公司',
+    u'(株)',
+]
+
+rx = re.compile(u'商$', re.UNICODE)
+ret = s[
+    (s['name'].apply(lambda x: rx.search(x) is not None)) &
+    (s['len'] < 10)
+]
+skips.extend(ret['name'])
+
+rx = re.compile('^[\d\w]+$')
+ret = s[
+    (s['name'].apply(lambda x: rx.search(x) is not None)) &
+    (s['len'] < 5)
+]
+skips.extend(ret['name'])
+id_name = id_name[~id_name['name'].isin(skips)]
+
+
+##
 df1 = id_name[~id_name.status.isin(bads)]
 s = df1.name.value_counts().sort_values()
 dbls = s[s > 1].index.get_level_values(0)
