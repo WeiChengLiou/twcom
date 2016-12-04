@@ -338,6 +338,15 @@ for i, df_ in ret.iterrows():
 若否則比對董監事名單，
 但目前尚未處理法人代表的問題，
 待日後再行處理。
+
+考慮法人代表的處理方式：
+
+- 先根據現有董監名單初步修正 instid by inst
+- 建立法人代表名單，Group by (id, instid, inst)，無統編者一律視為不同單位。
+- 根據法人代表與董監名單，判斷哪些相同公司名稱但不同 id 者，應視為相同單位。
+- Update instid by inst，according to Step 3.
+- 若有更新 instid 者，回到步驟二重新檢查，否則結束。
+- 確定 org list，無統編者一律視為不同單位。
 """
 ##
 # Fix instid with inst
