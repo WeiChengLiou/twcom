@@ -332,35 +332,27 @@ for i, df_ in ret.iterrows():
 第一個問題是一個名稱可能有多個 id。
 這有部份是來自於公司併購：例如元大期貨。
 所以單純的透過比較該 id 是否在已有清單內時，
-就會有可能該 id 以解散的問題。
-若是進一步比較董監事名單時，
-可能就會比較容易驗證。
-所以建立 id-name 清單時，
-應以存活公司為主，
-從董監事人數資訊應該可以協助判斷。
+就會有可能該 id 已解散的問題。
+但是像是合併解散的情況，我們無法得知存活公司是誰。
+所以還是從簡處理，若已在現有清單內則略過。
+若否則比對董監事名單，
+但目前尚未處理法人代表的問題，
+待日後再行處理。
 """
-##
-# Get board count
-board_cnt = (
-    boards
-    .groupby('id')
-    [u'姓名']
-    .count()
-    .to_dict()
-)
-
-
 ##
 # Fix instid with inst
 ret = (
     boards[
-        (~boards['inst'].isin(dbls)) &
+        # (~boards['inst'].isin(dbls)) &
         (boards['inst'].notnull()) &
-        (boards['inst'] != u'') &
-        (boards['instid'] != 0)
+        (boards['inst'] != u'')
+        # (boards['instid'] != 0)
     ]
     [['id', 'instid', 'inst']]
     .drop_duplicates()
+)
+ret = (
+    ret
     .merge(
         id_name
         [id_name['name'].isin(ret['inst'])]
@@ -377,25 +369,14 @@ ret = (
 
 ##
 li = []
+errs = []
 
 for i, df_ in ret.iterrows():
     instid, inst = df_['instid'], df_['inst']
     ids = df_['uid_list']
 
     if (instid in df_['uid_list']):
-        if len(ids) == 1:
-            continue
-        status = (
-            id_name.ix[
-                id_name['id'] == instid
-            ]
-            .iloc[0]
-            ['status']
-        )
-        if status not in bads:
-            continue
-        if (board_cnt.get(instid)):
-            continue
+        continue
 
     # Check boards coverage count
     dic = (
@@ -407,24 +388,35 @@ for i, df_ in ret.iterrows():
     if (len(dic) == 0):
         if (instid in df_['uid_list']):
             continue
-        msg = (u'Warning: empty boards - %s' % inst).encode('utf8')
-        raise Exception(msg)
+        msg = 'Empty boards'
+        errs.append(df_.to_dict().items() + [('msg', msg)])
+        continue
 
     board0 = set(boards[boards['id'] == df_['id']][u'姓名'])
     covers = dic.apply(lambda x: len(x & board0))
     if (covers.max() == 0):
         if (instid in df_['uid_list']):
             continue
-        msg = (u'Warning: no match boards - %s' % inst).encode('utf8')
-        raise Exception(msg)
+        msg = 'No match boards'
+        errs.append(df_.to_dict().items() + [('msg', msg)])
+        continue
     instid1 = covers.argmax()
     li.append(
         dict(df_.to_dict().items() + [('fix', instid1)])
     )
 
-# 目前因無符合條件公司，故暫時不處理。
-if len(li) > 0:
-    raise Exception('Happen fix instid case')
+li = pd.DataFrame(li).drop('uid_list', axis=1)
+errs = pd.DataFrame(map(dict, errs)).drop('uid_list', axis=1)
+
+
+##
+ret = (
+    boards
+    .merge(li, how='left')
+)
+idx = ret['fix'].notnull()
+ret.ix[idx, 'instid'] = ret.ix[idx, 'fix']
+boards = ret.drop('fix', axis=1)
 
 
 ##
@@ -455,6 +447,11 @@ orglist = (
 orglist['id'] = orglist['name']
 orglist['source'] = 'org'
 id_name = pd.concat([id_name, orglist]).reset_index(drop=True)
+"""
+合併 orglist 時，會有公司名稱跟現有清單重複的問題。
+但因為其董監事名單並無重複，
+故為保守起見還是列為新公司。
+"""
 
 
 ##
