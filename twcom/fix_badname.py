@@ -128,14 +128,24 @@ id_name = id_name[~id_name['name'].isin(skips)]
 
 ##
 df1 = id_name[~id_name.status.isin(bads)]
-s = df1.name.value_counts().sort_values()
-dbls = s[s > 1].index.get_level_values(0)
+# df2 = id_name[~id_name['name'].apply(chk_board)]
+s = chkdist(df1['name'])
+
+dbls = s[s.cnt > 1]['name']
 dbl_id = (
     id_name
     [id_name['name'].isin(dbls)]
     ['name']
     .drop_duplicates()
     .tolist()
+)
+dbldic = (
+    id_name
+    [id_name.name.isin(dbls)]
+    .groupby('name')
+    ['id']
+    .apply(lambda x: list(x))
+    .to_dict()
 )
 
 
@@ -222,7 +232,7 @@ boards.ix[ret.index, u'姓名'] = u''
 
 
 ##
-# Fix inst as board name
+# Fix bad inst name
 ret = (
     boards
     .merge(
@@ -280,6 +290,49 @@ ret = boards[
 
 ret = ret[ret['instid'].isnull()]
 assert len(ret) == 0
+
+
+##
+# Solution to deal with one company name with several ids
+ret = (
+    boards[
+        (boards['inst'].isin(dbls))
+    ]
+)
+for i, df_ in ret.iterrows():
+    instid, inst = df_['instid'], df_['inst']
+    ids = dbldic[inst]
+
+    if instid in ids:
+        # matched instid
+        continue
+    elif instid == 0:
+        # Check boards coverage count
+        dic = (
+            boards
+            [boards['id'].isin(ids)]
+            .groupby('id')
+            .apply(lambda x: set(x[u'姓名']))
+        )
+        board0 = set(boards[boards['id'] == df_['id']][u'姓名'])
+        covers = dic.apply(lambda x: len(x & board0))
+        if covers.max() == 0:
+            msg = (u'Warning: no match boards - %s' % inst).encode('utf8')
+            raise Exception(msg)
+        instid1 = covers.argmax()
+        boards.ix[df_.name, 'instid'] = instid1
+
+
+##
+# Fix instid with inst
+
+
+##
+# Fix inst as board name
+ret = (
+    boards
+    [boards[u'姓名'].isin(id_name['name'])]
+)
 
 
 ##
