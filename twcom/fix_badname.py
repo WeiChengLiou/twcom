@@ -346,6 +346,7 @@ for i, df_ in ret.iterrows():
 - 根據法人代表與董監名單，判斷哪些相同公司名稱但不同 id 者，應視為相同單位。
 - Update instid by inst，according to Step 3.
 - 若有更新 instid 者，回到步驟二重新檢查，否則結束。
+- 依前項結果檢視公司名稱被當作董監事名稱者。
 - 確定 org list，無統編者一律視為不同單位。
 """
 ##
@@ -416,6 +417,76 @@ for i, df_ in ret.iterrows():
 
 li = pd.DataFrame(li).drop('uid_list', axis=1)
 errs = pd.DataFrame(map(dict, errs)).drop('uid_list', axis=1)
+
+
+##
+# Assign id to inst
+ret = (
+    boards
+    [
+        (boards['inst'].notnull()) &
+        (boards['inst'] != u'') &
+        (boards['instid'] == 0)
+    ]
+    [['id', 'inst']]
+    .drop_duplicates()
+)
+ret['fix'] = [('T%07d' % x) for x in range(len(ret))]
+ret = (
+    boards
+    .merge(ret, how='left')
+)
+idx = ret['fix'].notnull()
+ret.ix[idx, 'instid'] = ret.ix[idx, 'fix']
+boards = ret.drop('fix', axis=1)
+
+
+##
+# Build up inst representatives list
+ret = (
+    boards
+    [(boards['inst'] != u'') & (boards['inst'].notnull())]
+    [['instid', u'姓名']]
+    .drop_duplicates()
+    .rename(columns={'instid': 'id'})
+    .merge(
+        boards
+        [['id', u'姓名']]
+        .drop_duplicates()
+        .assign(flag=1),
+        how='left'
+    )
+)
+ret = (
+    ret
+    [ret['flag'].isnull()]
+    .drop('flag', axis=1)
+)
+
+ret_idname = (
+    boards
+    [['instid', 'inst']]
+    .drop_duplicates()
+    .dropna()
+    .rename(columns={
+        'instid': 'id',
+        'inst': 'name',
+    })
+)
+ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
+ret_idname['source'] = 'org'
+id_name = pd.concat([id_name, ret_idname])
+
+ret_boards = (
+    ret
+    .drop_duplicates()
+)
+ret_boards[u'職稱'] = u'法人代表'
+boards = pd.concat([boards, ret_boards])
+
+
+##
+# Compare boards and id_name, find same company
 
 
 ##
