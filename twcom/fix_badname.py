@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
+import itertools as it
 import numpy as np
 import re
 import pandas as pd
@@ -346,6 +347,7 @@ for i, df_ in ret.iterrows():
 - 根據法人代表與董監名單，判斷哪些相同公司名稱但不同 id 者，應視為相同單位。
 - Update instid by inst，according to Step 3.
 - 若有更新 instid 者，回到步驟二重新檢查，否則結束。
+- 依前項結果檢視公司名稱被當作董監事名稱者。
 - 確定 org list，無統編者一律視為不同單位。
 """
 ##
@@ -416,6 +418,206 @@ for i, df_ in ret.iterrows():
 
 li = pd.DataFrame(li).drop('uid_list', axis=1)
 errs = pd.DataFrame(map(dict, errs)).drop('uid_list', axis=1)
+
+
+##
+# Assign id to inst
+ret = (
+    boards
+    [
+        (boards['inst'].notnull()) &
+        (boards['inst'] != u'') &
+        (boards['instid'] == 0)
+    ]
+    [['id', 'inst']]
+    .drop_duplicates()
+)
+ret['fix'] = [('T%07d' % x) for x in range(len(ret))]
+ret = (
+    boards
+    .merge(ret, how='left')
+)
+idx = ret['fix'].notnull()
+ret.ix[idx, 'instid'] = ret.ix[idx, 'fix']
+boards = ret.drop('fix', axis=1)
+
+
+##
+# Deal with special name
+def parse_name(name):
+    def len_filter(s):
+        qry = re.search('[\w\d\-\.\(\)\,]+', s)
+        if qry:
+            if (qry.group() == s):
+                if (len(s) < 5):
+                    return False
+            else:
+                return False
+        else:
+            if len(s) < 2:
+                return False
+        return True
+
+    rx1 = re.compile('\((.*)\)', re.UNICODE)
+    li = []
+    qry = rx1.search(name)
+    if qry:
+        li.extend(qry.groups())
+        name = name.replace(li[-1], u'').replace(u'()', u'')
+
+    li.extend(name.split(','))
+    li = [x.strip() for x in li]
+    return list(it.ifilter(len_filter, li))
+
+
+##
+# Add resposible person
+namecol = (
+    (u'代表人姓名', u'代表人'),
+    (u'負責人姓名', u'負責人'),
+    (u'訴訟及非訴訟代理人姓名', u'訴訟及非訴訟代理人'),
+)
+# for c, title in namecol:
+#     boards = boards[boards[u'職稱'] != title]
+
+for c, title in namecol:
+    print c
+    ret = db.raw.find(
+        {c: {'$exists': 1, '$ne': u''}},
+        {'_id': 0, 'id': 1, c: 1}
+    )
+    li = pd.DataFrame(list(ret))
+
+    li['list'] = li[c].apply(
+        lambda x: isinstance(x, list)
+    )
+    x0 = li[li['list']]
+    x0 = pd.DataFrame(
+        x0[c].tolist(),
+        index=x0['id']
+    )
+
+    if len(x0) > 0:
+        # Deal with name list
+        x0 = (
+            pd.concat(
+                [x0[0], x0[1]]
+            )
+            .rename(u'姓名')
+            .reset_index()
+            .drop_duplicates()
+        )
+
+    x1 = (
+        li
+        [~li['list']]
+        .rename(columns={
+            c: u'姓名',
+        })
+        .drop('list', axis=1)
+    )
+
+    li = pd.concat([x0, x1])
+    li[u'職稱'] = title
+    li = li[li[u'姓名'].apply(chk_board)]
+
+    # Special case in name
+    s = li[li[u'姓名'].apply(
+        lambda x: (re.search(u'[,\(\)]', x) is not None)
+    )]
+    if len(s) > 0:
+        s1 = (
+            s.set_index('id')
+            [u'姓名']
+            .apply(parse_name)
+        )
+        s1 = (
+            pd.DataFrame(
+                s1.tolist(),
+                index=s1.index
+            )
+            .stack()
+            .rename(u'姓名')
+        )
+        s1.index = s1.index.droplevel(1)
+        s1 = (
+            s1
+            .reset_index()
+            .drop_duplicates()
+        )
+        s1[u'職稱'] = li.iloc[0][u'職稱']
+
+        li = pd.concat([li, s1]).drop_duplicates()
+
+    ret = (
+        li
+        .merge(
+            boards
+            [['id', u'姓名']]
+            .assign(flag=1),
+            how='left'
+        )
+    )
+    ret = ret[
+        (ret['flag'].isnull()) &
+        (ret[u'姓名'].apply(chk_board))
+    ]
+    ret = ret.drop('flag', axis=1)
+
+    boards = pd.concat([ret, boards])
+
+
+##
+# Build up inst representatives list
+ret = (
+    boards
+    [(boards['inst'] != u'') & (boards['inst'].notnull())]
+    [['instid', u'姓名']]
+    .drop_duplicates()
+    .rename(columns={'instid': 'id'})
+    .merge(
+        boards
+        [['id', u'姓名']]
+        .drop_duplicates()
+        .assign(flag=1),
+        how='left'
+    )
+)
+ret = (
+    ret
+    [ret['flag'].isnull()]
+    .drop('flag', axis=1)
+)
+
+ret_idname = (
+    boards
+    [['instid', 'inst']]
+    .drop_duplicates()
+    .dropna()
+    .rename(columns={
+        'instid': 'id',
+        'inst': 'name',
+    })
+)
+ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
+ret_idname['source'] = 'org'
+id_name = pd.concat([id_name, ret_idname])
+
+ret_boards = (
+    ret
+    .drop_duplicates()
+)
+ret_boards[u'職稱'] = u'法人代表'
+boards = pd.concat([boards, ret_boards])
+
+
+##
+# Compare boards and id_name, find same company
+for name, df_ in id_name.groupby('name'):
+    if len(df_) == 1:
+        continue
+    print df_
+    break
 
 
 ##
