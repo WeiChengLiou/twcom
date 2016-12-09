@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
+import itertools as it
 import numpy as np
 import re
 import pandas as pd
@@ -486,7 +487,110 @@ boards = pd.concat([boards, ret_boards])
 
 
 ##
+# Deal with special name
+def parse_name(name):
+    rx1 = re.compile('\((.*)\)', re.UNICODE)
+    li = []
+    qry = rx1.search(name)
+    if qry:
+        li.extend(qry.groups())
+        name = name.replace(li[-1], u'').replace(u'()', u'')
+
+    li.extend(name.split(','))
+    return [x.strip() for x in li]
+
+
+##
+# Add resposible person
+namecol = (
+    u'代表人姓名',
+    u'負責人姓名',
+    u'訴訟及非訴訟代理人姓名',
+)
+
+for c in namecol:
+    print c
+    c1 = c.replace(u'姓名', u'')
+    ret = db.raw.find(
+        {c: {'$exists': 1, '$ne': u''}},
+        {'_id': 0, 'id': 1, c: 1}
+    )
+    li = pd.DataFrame(list(ret))
+
+    li['list'] = li[c].apply(
+        lambda x: isinstance(x, list)
+    )
+    x0 = li[li['list']]
+    x0 = pd.DataFrame(
+        x0[c].tolist(),
+        index=x0['id']
+    )
+
+    if len(x0) > 0:
+        # Deal with name list
+        x0 = (
+            pd.concat(
+                [x0[0], x0[1]]
+            )
+            .rename(u'姓名')
+            .reset_index()
+            .drop_duplicates()
+        )
+
+    x1 = (
+        li
+        [~li['list']]
+        .rename(columns={
+            c: u'姓名',
+        })
+        .drop('list', axis=1)
+    )
+
+    li = pd.concat([x0, x1])
+    li[u'職稱'] = c1
+
+    # Special case in name
+    s = li[li[u'姓名'].apply(
+        lambda x:
+            (re.search(u'[,\(\)]', x) is not None) &
+            (chk_board(x))
+    )]
+    if len(s) > 0:
+        s1 = (s.apply(
+            lambda x: [(x['id'], y) for y in parse_name(x[u'姓名'])],
+            axis=1))
+        s1 = pd.DataFrame(
+            list(it.chain.from_iterable(s1)),
+            columns=('id', u'姓名')
+        ).drop_duplicates()
+        s1[u'職稱'] = li.iloc[0][u'職稱']
+        li = pd.concat([li, s1]).drop_duplicates()
+
+    ret = (
+        li
+        .merge(
+            boards
+            [['id', u'姓名']]
+            .assign(flag=1),
+            how='left'
+        )
+    )
+    ret = ret[
+        (ret['flag'].isnull()) &
+        (ret[u'姓名'].apply(chk_board))
+    ]
+    ret = ret.drop('flag', axis=1)
+
+    boards = pd.concat([ret, boards])
+
+
+##
 # Compare boards and id_name, find same company
+for name, df_ in id_name.groupby('name'):
+    if len(df_) == 1:
+        continue
+    print df_
+    break
 
 
 ##
