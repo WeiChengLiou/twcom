@@ -443,50 +443,6 @@ boards = ret.drop('fix', axis=1)
 
 
 ##
-# Build up inst representatives list
-ret = (
-    boards
-    [(boards['inst'] != u'') & (boards['inst'].notnull())]
-    [['instid', u'姓名']]
-    .drop_duplicates()
-    .rename(columns={'instid': 'id'})
-    .merge(
-        boards
-        [['id', u'姓名']]
-        .drop_duplicates()
-        .assign(flag=1),
-        how='left'
-    )
-)
-ret = (
-    ret
-    [ret['flag'].isnull()]
-    .drop('flag', axis=1)
-)
-
-ret_idname = (
-    boards
-    [['instid', 'inst']]
-    .drop_duplicates()
-    .dropna()
-    .rename(columns={
-        'instid': 'id',
-        'inst': 'name',
-    })
-)
-ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
-ret_idname['source'] = 'org'
-id_name = pd.concat([id_name, ret_idname])
-
-ret_boards = (
-    ret
-    .drop_duplicates()
-)
-ret_boards[u'職稱'] = u'法人代表'
-boards = pd.concat([boards, ret_boards])
-
-
-##
 # Deal with special name
 def parse_name(name):
     rx1 = re.compile('\((.*)\)', re.UNICODE)
@@ -582,6 +538,50 @@ for c in namecol:
     ret = ret.drop('flag', axis=1)
 
     boards = pd.concat([ret, boards])
+
+
+##
+# Build up inst representatives list
+ret = (
+    boards
+    [(boards['inst'] != u'') & (boards['inst'].notnull())]
+    [['instid', u'姓名']]
+    .drop_duplicates()
+    .rename(columns={'instid': 'id'})
+    .merge(
+        boards
+        [['id', u'姓名']]
+        .drop_duplicates()
+        .assign(flag=1),
+        how='left'
+    )
+)
+ret = (
+    ret
+    [ret['flag'].isnull()]
+    .drop('flag', axis=1)
+)
+
+ret_idname = (
+    boards
+    [['instid', 'inst']]
+    .drop_duplicates()
+    .dropna()
+    .rename(columns={
+        'instid': 'id',
+        'inst': 'name',
+    })
+)
+ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
+ret_idname['source'] = 'org'
+id_name = pd.concat([id_name, ret_idname])
+
+ret_boards = (
+    ret
+    .drop_duplicates()
+)
+ret_boards[u'職稱'] = u'法人代表'
+boards = pd.concat([boards, ret_boards])
 
 
 ##
