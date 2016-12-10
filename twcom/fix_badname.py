@@ -445,6 +445,19 @@ boards = ret.drop('fix', axis=1)
 ##
 # Deal with special name
 def parse_name(name):
+    def len_filter(s):
+        qry = re.search('[\w\d\-\.\(\)\,]+', s)
+        if qry:
+            if (qry.group() == s):
+                if (len(s) < 5):
+                    return False
+            else:
+                return False
+        else:
+            if len(s) < 2:
+                return False
+        return True
+
     rx1 = re.compile('\((.*)\)', re.UNICODE)
     li = []
     qry = rx1.search(name)
@@ -453,20 +466,22 @@ def parse_name(name):
         name = name.replace(li[-1], u'').replace(u'()', u'')
 
     li.extend(name.split(','))
-    return [x.strip() for x in li]
+    li = [x.strip() for x in li]
+    return list(it.ifilter(len_filter, li))
 
 
 ##
 # Add resposible person
 namecol = (
-    u'代表人姓名',
-    u'負責人姓名',
-    u'訴訟及非訴訟代理人姓名',
+    (u'代表人姓名', u'代表人'),
+    (u'負責人姓名', u'負責人'),
+    (u'訴訟及非訴訟代理人姓名', u'訴訟及非訴訟代理人'),
 )
+# for c, title in namecol:
+#     boards = boards[boards[u'職稱'] != title]
 
-for c in namecol:
+for c, title in namecol:
     print c
-    c1 = c.replace(u'姓名', u'')
     ret = db.raw.find(
         {c: {'$exists': 1, '$ne': u''}},
         {'_id': 0, 'id': 1, c: 1}
@@ -503,23 +518,35 @@ for c in namecol:
     )
 
     li = pd.concat([x0, x1])
-    li[u'職稱'] = c1
+    li[u'職稱'] = title
+    li = li[li[u'姓名'].apply(chk_board)]
 
     # Special case in name
     s = li[li[u'姓名'].apply(
-        lambda x:
-            (re.search(u'[,\(\)]', x) is not None) &
-            (chk_board(x))
+        lambda x: (re.search(u'[,\(\)]', x) is not None)
     )]
     if len(s) > 0:
-        s1 = (s.apply(
-            lambda x: [(x['id'], y) for y in parse_name(x[u'姓名'])],
-            axis=1))
-        s1 = pd.DataFrame(
-            list(it.chain.from_iterable(s1)),
-            columns=('id', u'姓名')
-        ).drop_duplicates()
+        s1 = (
+            s.set_index('id')
+            [u'姓名']
+            .apply(parse_name)
+        )
+        s1 = (
+            pd.DataFrame(
+                s1.tolist(),
+                index=s1.index
+            )
+            .stack()
+            .rename(u'姓名')
+        )
+        s1.index = s1.index.droplevel(1)
+        s1 = (
+            s1
+            .reset_index()
+            .drop_duplicates()
+        )
         s1[u'職稱'] = li.iloc[0][u'職稱']
+
         li = pd.concat([li, s1]).drop_duplicates()
 
     ret = (
