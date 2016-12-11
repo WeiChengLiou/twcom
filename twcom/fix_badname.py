@@ -28,6 +28,61 @@ def chkdist(s):
 
 
 ##
+def update(df0, df1, col, col1=None):
+    # Update column from another dataframe
+    cols = df0.columns
+    if col1 is None:
+        col1 = col
+    ret = (
+        df0
+        .merge(df1.rename(columns={col1: 'fix'}), how='left')
+    )
+    ret['fix'] = ret['fix'].fillna(ret[col])
+    assert ret.shape[0] == df0.shape[0]
+    return (
+        ret
+        .drop(col, axis=1)
+        .rename(columns={'fix': col})
+        [cols]
+    )
+
+
+##
+def grp_unify(df):
+    """ Group select and offer fix id """
+    lvls = range(df.index.nlevels)
+    col = df.name
+    colfix = col + 'fix'
+    cnt = (
+        df.groupby(level=lvls)
+        .count()
+    )
+    cnt = cnt[cnt > 1]
+    if len(cnt) > 0:
+        df1 = (
+            df.ix[cnt.index]
+            .copy()
+            .to_frame()
+        )
+        df2 = (
+            df1
+            .groupby(level=lvls)
+            [col]
+            .min()
+            .rename(colfix)
+        )
+        df3 = (
+            df1
+            .reset_index()
+            .merge(df2.reset_index())
+            .drop_duplicates()
+        )
+        return df3
+    else:
+        return None
+
+
+##
 # Retrieve bad name list
 
 # Construct (id, name) pair dictionary
@@ -198,10 +253,10 @@ id2 = id2[id2 != 0]
 names = inst.ix[id2.index, 'inst'].apply(
     lambda x: x.replace(u'股份有限公司', u''))
 rx = re.compile(u'|'.join(names), re.UNICODE)
-df2 = id_name[id_name.name.apply(lambda x: rx.search(x) is not None)]
+df_noid = id_name[id_name.name.apply(lambda x: rx.search(x) is not None)]
 
-if len(df2) > 0:
-    raise Exception('Get exists name but unknown id', df2)
+if len(df_noid) > 0:
+    raise Exception('Get exists name but unknown id', df_noid)
 
 
 ##
@@ -217,14 +272,25 @@ fixdic.update(rename_dic)
 
 fixdic = (
     pd.Series(fixdic)
+    .rename('fix')
     .to_frame()
     .reset_index()
     .rename(columns={
         'index': 'name',
-        0: 'fix',
     })
 )
+fixdic.ix[fixdic['fix'] == u'', 'fix'] = np.nan
 # show(fixdic)
+
+
+##
+# Fix bad inst name
+boards = update(
+    boards,
+    fixdic.rename(columns={'name': 'inst'}),
+    'inst',
+    'fix'
+)
 
 
 ##
@@ -233,27 +299,11 @@ ret = boards[~boards[u'姓名'].apply(chk_board)]
 boards.ix[ret.index, u'姓名'] = u''
 
 
-##
-# Fix bad inst name
-ret = (
-    boards
-    .merge(
-        fixdic.rename(columns={'name': 'inst'}),
-        how='left'
-    )
-)
-ret['fix'] = ret['fix'].fillna(ret['inst'])
-
 # Remove instid which remove inst too
-ret.ix[(ret['fix'] == u'') & (ret['instid'] == 0), 'instid'] = np.nan
-
-ret = (
-    ret
-    .drop('inst', axis=1)
-    .rename(columns={'fix': 'inst'})
-)
-boards = ret
-
+boards.ix[
+    boards['inst'].isnull() &
+    (boards['instid'] == 0),
+    'instid'] = np.nan
 
 ##
 iddic = (
@@ -267,20 +317,11 @@ iddic = (
 
 ##
 # Fix wrong inst based on instid
-ret = (
-    boards
-    .merge(
-        iddic
-        .rename(columns={
-            'id': 'instid',
-        }),
-        how='left'
-    )
+boards = update(
+    boards,
+    iddic.rename(columns={'id': 'instid'}),
+    'inst', 'name'
 )
-
-idx = ret[(ret['inst'] != ret['name']) & ret['name'].notnull()].index
-ret.ix[idx, 'inst'] = ret.ix[idx, 'name']
-boards = ret.drop('name', axis=1)
 
 
 ##
@@ -295,155 +336,7 @@ assert len(ret) == 0
 
 
 ##
-# Solution to deal with one company name with several ids
-ret = (
-    boards[
-        (boards['inst'].isin(dbls))
-    ]
-)
-for i, df_ in ret.iterrows():
-    instid, inst = df_['instid'], df_['inst']
-    ids = dbldic[inst]
-
-    if instid in ids:
-        # matched instid
-        continue
-    elif instid == 0:
-        # Check boards coverage count
-        dic = (
-            boards
-            [boards['id'].isin(ids)]
-            .groupby('id')
-            .apply(lambda x: set(x[u'姓名']))
-        )
-        board0 = set(boards[boards['id'] == df_['id']][u'姓名'])
-        covers = dic.apply(lambda x: len(x & board0))
-        if covers.max() == 0:
-            msg = (u'Warning: no match boards - %s' % inst).encode('utf8')
-            raise Exception(msg)
-        instid1 = covers.argmax()
-        boards.ix[df_.name, 'instid'] = instid1
-
-
-##
-"""
-處理以法人代表名稱尋找對應 id 的問題時，
-會以 id-name 清單作為對照確認。
-
-第一個問題是一個名稱可能有多個 id。
-這有部份是來自於公司併購：例如元大期貨。
-所以單純的透過比較該 id 是否在已有清單內時，
-就會有可能該 id 已解散的問題。
-但是像是合併解散的情況，我們無法得知存活公司是誰。
-所以還是從簡處理，若已在現有清單內則略過。
-若否則比對董監事名單，
-但目前尚未處理法人代表的問題，
-待日後再行處理。
-
-考慮法人代表的處理方式：
-
-- 先根據現有董監名單初步修正 instid by inst
-- 建立法人代表名單，Group by (id, instid, inst)，無統編者一律視為不同單位。
-- 根據法人代表與董監名單，判斷哪些相同公司名稱但不同 id 者，應視為相同單位。
-- Update instid by inst，according to Step 3.
-- 若有更新 instid 者，回到步驟二重新檢查，否則結束。
-- 依前項結果檢視公司名稱被當作董監事名稱者。
-- 確定 org list，無統編者一律視為不同單位。
-"""
-##
-# Fix instid with inst
-ret = (
-    boards[
-        # (~boards['inst'].isin(dbls)) &
-        (boards['inst'].notnull()) &
-        (boards['inst'] != u'')
-        # (boards['instid'] != 0)
-    ]
-    [['id', 'instid', 'inst']]
-    .drop_duplicates()
-)
-ret = (
-    ret
-    .merge(
-        id_name
-        [id_name['name'].isin(ret['inst'])]
-        .groupby('name')
-        .apply(lambda x: list(x['id']))
-        .rename('uid_list')
-        .reset_index()
-        .rename(columns={'name': 'inst'}),
-        how='left'
-    )
-    .dropna()
-)
-
-
-##
-li = []
-errs = []
-
-for i, df_ in ret.iterrows():
-    instid, inst = df_['instid'], df_['inst']
-    ids = df_['uid_list']
-
-    if (instid in df_['uid_list']):
-        continue
-
-    # Check boards coverage count
-    dic = (
-        boards
-        [boards['id'].isin(ids)]
-        .groupby('id')
-        .apply(lambda x: set(x[u'姓名']))
-    )
-    if (len(dic) == 0):
-        if (instid in df_['uid_list']):
-            continue
-        msg = 'Empty boards'
-        errs.append(df_.to_dict().items() + [('msg', msg)])
-        continue
-
-    board0 = set(boards[boards['id'] == df_['id']][u'姓名'])
-    covers = dic.apply(lambda x: len(x & board0))
-    if (covers.max() == 0):
-        if (instid in df_['uid_list']):
-            continue
-        msg = 'No match boards'
-        errs.append(df_.to_dict().items() + [('msg', msg)])
-        continue
-    instid1 = covers.argmax()
-    li.append(
-        dict(df_.to_dict().items() + [('fix', instid1)])
-    )
-
-li = pd.DataFrame(li).drop('uid_list', axis=1)
-errs = pd.DataFrame(map(dict, errs)).drop('uid_list', axis=1)
-
-
-##
-# Assign id to inst
-ret = (
-    boards
-    [
-        (boards['inst'].notnull()) &
-        (boards['inst'] != u'') &
-        (boards['instid'] == 0)
-    ]
-    [['id', 'inst']]
-    .drop_duplicates()
-)
-ret['fix'] = [('T%07d' % x) for x in range(len(ret))]
-ret = (
-    boards
-    .merge(ret, how='left')
-)
-idx = ret['fix'].notnull()
-ret.ix[idx, 'instid'] = ret.ix[idx, 'fix']
-boards = ret.drop('fix', axis=1)
-
-
-##
-# Deal with special name
+# Parse special name
 def parse_name(name):
     def len_filter(s):
         qry = re.search('[\w\d\-\.\(\)\,]+', s)
@@ -477,8 +370,8 @@ namecol = (
     (u'負責人姓名', u'負責人'),
     (u'訴訟及非訴訟代理人姓名', u'訴訟及非訴訟代理人'),
 )
-# for c, title in namecol:
-#     boards = boards[boards[u'職稱'] != title]
+titles = [x[1] for x in namecol]
+boards = boards[~boards[u'職稱'].isin(titles)]
 
 for c, title in namecol:
     print c
@@ -498,7 +391,7 @@ for c, title in namecol:
     )
 
     if len(x0) > 0:
-        # Deal with name list
+        # Deal with name list case
         x0 = (
             pd.concat(
                 [x0[0], x0[1]]
@@ -568,11 +461,85 @@ for c, title in namecol:
 
 
 ##
-# Build up inst representatives list
+def same_comps(id_name, boards):
+    # Compare boards and id_name, build same company list
+    id_name_board = id_name.merge(boards[['id', u'姓名']], how='left')
+    cnt = 0
+
+    while 1:
+        print 'Big loop'
+        id_fix = (
+            grp_unify(id_name_board.set_index(['name', u'姓名'])['keyno'])
+            .drop(u'姓名', axis=1)
+            .drop_duplicates()
+        )
+        while 1:
+            df1_fix = grp_unify(
+                id_fix
+                .set_index(['name', 'keyno'])
+                ['keynofix']
+            )
+            if df1_fix is None:
+                break
+            print 'update (name, keyno)'
+            id_fix = (
+                update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
+                .drop_duplicates()
+            )
+
+        id_fix = id_fix.drop('name', axis=1)
+        while 1:
+            df1_fix = grp_unify(
+                id_fix
+                .set_index(['keyno'])
+                ['keynofix']
+            )
+            if df1_fix is None:
+                break
+            print 'update (keyno,)'
+            id_fix = (
+                update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
+                .drop_duplicates()
+            )
+
+        # id_name1 = update(id_name1, id_fix, 'keyno', 'keynofix')
+        id_name_board = update(id_name_board, id_fix, 'keyno', 'keynofix')
+        cnt1 = id_name_board['keyno'].drop_duplicates().count()
+        if cnt == cnt1:
+            break
+        else:
+            cnt = cnt1
+
+    return (
+        id_name_board
+        .drop(u'姓名', axis=1)
+        .drop_duplicates()
+    )
+
+print 'same comp 1'
+id_name['keyno'] = id_name['id']
+id_name = same_comps(id_name, boards)
+
+
+##
+# Assign unique id to no-id-inst
 ret = (
     boards
-    [(boards['inst'] != u'') & (boards['inst'].notnull())]
-    [['instid', u'姓名']]
+    [
+        (boards['inst'].notnull()) &
+        (boards['instid'] == 0)
+    ]
+    [['id', 'inst']]
+    .drop_duplicates()
+)
+ret['fix'] = [('T%07d' % x) for x in range(len(ret))]
+boards = update(boards, ret, 'instid', 'fix')
+
+
+##
+# Build up inst representatives list
+ret = (
+    boards.ix[boards['inst'].notnull(), ['instid', u'姓名']]
     .drop_duplicates()
     .rename(columns={'instid': 'id'})
     .merge(
@@ -603,31 +570,20 @@ ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
 ret_idname['source'] = 'org'
 id_name = pd.concat([id_name, ret_idname])
 
-ret_boards = (
-    ret
-    .drop_duplicates()
-)
+ret_boards = ret.drop_duplicates()
 ret_boards[u'職稱'] = u'法人代表'
 boards = pd.concat([boards, ret_boards])
 
 
 ##
-# Compare boards and id_name, find same company
-for name, df_ in id_name.groupby('name'):
-    if len(df_) == 1:
-        continue
-    print df_
-    break
+# Update same company list again
+print 'same comp 2'
+id_name['keyno'].fillna(id_name['id'], inplace=True)
+id_name = same_comps(id_name, boards)
 
 
 ##
-ret = (
-    boards
-    .merge(li, how='left')
-)
-idx = ret['fix'].notnull()
-ret.ix[idx, 'instid'] = ret.ix[idx, 'fix']
-boards = ret.drop('fix', axis=1)
+# Fix instid with inst
 
 
 ##
