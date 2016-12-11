@@ -612,12 +612,35 @@ boards = pd.concat([boards, ret_boards])
 
 
 ##
-# Compare boards and id_name, find same company
+# Compare boards and id_name, build same company list
+li = []
 for name, df_ in id_name.groupby('name'):
     if len(df_) == 1:
         continue
-    print df_
-    break
+
+    boss = boards[boards['id'].isin(df_['id'])]
+    same_comps = (
+        boss
+        .groupby(u'姓名')
+        .id.apply(tuple)
+        .drop_duplicates()
+    )
+    li0 = pd.DataFrame(columns=['keyno', 'id'])
+    for x in same_comps:
+        x = pd.Series(x, name='id').to_frame()
+        x['keyno'] = 1
+        keyno = li0.ix[li0['id'].isin(x['id']), 'keyno']
+        if all(keyno.isnull()):
+            li0 = pd.concat([li0, x.assign(keyno=len(li0))])
+        else:
+            keyno = keyno.drop_duplicates()
+            uni_no = keyno.iloc[0]
+            li0.ix[li0['keyno'].isin(keyno), 'keyno'] = uni_no
+            li0 = li0.merge(x.assign(keyno=uni_no), how='outer')
+    li0['name'] = name
+    li.append(li0)
+
+li = pd.concat(li)
 
 
 ##
