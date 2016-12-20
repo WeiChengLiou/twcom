@@ -28,6 +28,57 @@ def chkdist(s):
 
 
 ##
+def update(df0, df1, col, col1=None):
+    # Update column from another dataframe
+    cols = df0.columns
+    if col1 is None:
+        col1 = col
+    ret = (
+        df0
+        .merge(df1.rename(columns={col1: 'fix'}), how='left')
+    )
+    ret['fix'] = ret['fix'].fillna(ret[col])
+    return (
+        ret
+        .drop(col, axis=1)
+        .rename(columns={'fix': col})
+        [cols]
+    )
+
+
+##
+def grp_unify(df):
+    """ Group select and offer fix id """
+    lvls = range(df.index.nlevels)
+    col = df.name
+    colfix = col + 'fix'
+    cnt = (
+        df.groupby(level=lvls)
+        .count()
+    )
+    cnt = cnt[cnt > 1]
+    df1 = (
+        df.ix[cnt.index]
+        .copy()
+        .to_frame()
+    )
+    df2 = (
+        df1
+        .groupby(level=lvls)
+        [col]
+        .min()
+        .rename(colfix)
+    )
+    df3 = (
+        df1
+        .reset_index()
+        .merge(df2.reset_index())
+        .drop_duplicates()
+    )
+    return df3
+
+
+##
 # Retrieve bad name list
 
 # Construct (id, name) pair dictionary
@@ -613,44 +664,30 @@ boards = pd.concat([boards, ret_boards])
 
 ##
 # Compare boards and id_name, build same company list
-li = []
-for name, df_ in id_name.groupby('name'):
-    if len(df_) == 1:
-        continue
-
-    boss = boards[boards['id'].isin(df_['id'])]
-    same_comps = (
-        boss
-        .groupby(u'姓名')
-        .id.apply(tuple)
-        .drop_duplicates()
-    )
-    li0 = pd.DataFrame(columns=['keyno', 'id'])
-    for x in same_comps:
-        x = pd.Series(x, name='id').to_frame()
-        x['keyno'] = 1
-        keyno = li0.ix[li0['id'].isin(x['id']), 'keyno']
-        if all(keyno.isnull()):
-            li0 = pd.concat([li0, x.assign(keyno=len(li0))])
-        else:
-            keyno = keyno.drop_duplicates()
-            uni_no = keyno.iloc[0]
-            li0.ix[li0['keyno'].isin(keyno), 'keyno'] = uni_no
-            li0 = li0.merge(x.assign(keyno=uni_no), how='outer')
-    li0['name'] = name
-    li.append(li0)
-
-li = pd.concat(li)
-
-
-##
+id_name['keyno'] = id_name['id']
 ret = (
-    boards
-    .merge(li, how='left')
+    id_name.merge(boards, how='left')
 )
-idx = ret['fix'].notnull()
-ret.ix[idx, 'instid'] = ret.ix[idx, 'fix']
-boards = ret.drop('fix', axis=1)
+id_fix = (
+    grp_unify(ret.set_index(['name', u'姓名'])['keyno'])
+    .drop(u'姓名', axis=1)
+)
+df1_fix = grp_unify(
+    id_fix
+    .set_index(['name', 'keyno'])
+    ['keynofix']
+)
+id_fix = (
+    update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
+    .drop('name', axis=1)
+)
+df1_fix = grp_unify(
+    id_fix
+    .set_index(['keyno'])
+    ['keynofix']
+)
+id_fix = update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
+id_name = update(id_name, id_fix, 'keyno', 'keynofix')
 
 
 ##
