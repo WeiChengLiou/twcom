@@ -463,7 +463,6 @@ for c, title in namecol:
 ##
 def same_comps(id_name, boards):
     # Compare boards and id_name, build same company list
-    id_name1 = id_name
     id_name_board = id_name.merge(boards[['id', u'姓名']], how='left')
     cnt = 0
 
