@@ -463,56 +463,63 @@ for c, title in namecol:
 ##
 def same_comps(id_name, boards):
     # Compare boards and id_name, build same company list
-    ret = (
-        id_name.merge(boards, how='left')
-    )
-    id_fix = (
-        grp_unify(ret.set_index(['name', u'姓名'])['keyno'])
+    id_name1 = id_name
+    id_name_board = id_name.merge(boards[['id', u'姓名']], how='left')
+    cnt = 0
+
+    while 1:
+        print 'Big loop'
+        id_fix = (
+            grp_unify(id_name_board.set_index(['name', u'姓名'])['keyno'])
+            .drop(u'姓名', axis=1)
+            .drop_duplicates()
+        )
+        while 1:
+            df1_fix = grp_unify(
+                id_fix
+                .set_index(['name', 'keyno'])
+                ['keynofix']
+            )
+            if df1_fix is None:
+                break
+            print 'update (name, keyno)'
+            id_fix = (
+                update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
+                .drop_duplicates()
+            )
+
+        id_fix = id_fix.drop('name', axis=1)
+        while 1:
+            df1_fix = grp_unify(
+                id_fix
+                .set_index(['keyno'])
+                ['keynofix']
+            )
+            if df1_fix is None:
+                break
+            print 'update (keyno,)'
+            id_fix = (
+                update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
+                .drop_duplicates()
+            )
+
+        # id_name1 = update(id_name1, id_fix, 'keyno', 'keynofix')
+        id_name_board = update(id_name_board, id_fix, 'keyno', 'keynofix')
+        cnt1 = id_name_board['keyno'].drop_duplicates().count()
+        if cnt == cnt1:
+            break
+        else:
+            cnt = cnt1
+
+    return (
+        id_name_board
         .drop(u'姓名', axis=1)
         .drop_duplicates()
     )
-    while 1:
-        df1_fix = grp_unify(
-            id_fix
-            .set_index(['name', 'keyno'])
-            ['keynofix']
-        )
-        if df1_fix is None:
-            break
-        print 'update (name, keyno)'
-        id_fix = (
-            update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
-            .drop_duplicates()
-        )
 
-    id_fix = id_fix.drop('name', axis=1)
-    while 1:
-        df1_fix = grp_unify(
-            id_fix
-            .set_index(['keyno'])
-            ['keynofix']
-        )
-        if df1_fix is None:
-            break
-        print 'update (keyno,)'
-        id_fix = (
-            update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
-            .drop_duplicates()
-        )
-
-    ret = update(id_name, id_fix, 'keyno', 'keynofix')
-    return ret
-
-
+print 'same comp 1'
 id_name['keyno'] = id_name['id']
-cnt = 0
-while 1:
-    id_name = same_comps(id_name, boards)
-    cnt1 = id_name.keyno.drop_duplicates().count()
-    if cnt1 == cnt:
-        break
-    else:
-        cnt = cnt1
+id_name = same_comps(id_name, boards)
 
 
 ##
@@ -571,15 +578,9 @@ boards = pd.concat([boards, ret_boards])
 
 ##
 # Update same company list again
+print 'same comp 2'
 id_name['keyno'].fillna(id_name['id'], inplace=True)
-cnt = 0
-while 1:
-    id_name = same_comps(id_name, boards)
-    cnt1 = id_name.keyno.drop_duplicates().count()
-    if cnt1 == cnt:
-        break
-    else:
-        cnt = cnt1
+id_name = same_comps(id_name, boards)
 
 
 ##
