@@ -546,6 +546,16 @@ while 1:
 
 ##
 # Fix instid with inst
+idmap = (
+    id_name[
+        (id_name['source'] == 'org') &
+        (id_name['id'] != id_name['keyno'])
+    ]
+    [['id', 'keyno']]
+)
+boards = update(boards, idmap.rename(columns={'id': 'instid'}),
+                'instid', 'keyno')
+id_name = id_name.drop(idmap.index)
 
 
 ##
