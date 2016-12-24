@@ -30,6 +30,7 @@ def chkdist(s):
 ##
 def update(df0, df1, col, col1=None):
     # Update column from another dataframe
+    assert df1[col1].isnull().sum() == 0
     cols = df0.columns
     if col1 is None:
         col1 = col
@@ -279,7 +280,6 @@ fixdic = (
         'index': 'name',
     })
 )
-fixdic.ix[fixdic['fix'] == u'', 'fix'] = np.nan
 # show(fixdic)
 
 
@@ -291,6 +291,7 @@ boards = update(
     'inst',
     'fix'
 )
+boards.ix[boards['inst'] == u'', 'inst'] = np.nan
 
 
 ##
