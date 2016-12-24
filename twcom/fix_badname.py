@@ -307,6 +307,7 @@ boards.ix[
     'instid'] = np.nan
 
 ##
+# Fix wrong inst based on instid
 iddic = (
     id_name
     .groupby('id')
@@ -314,10 +315,6 @@ iddic = (
     .first()
     .reset_index()
 )
-
-
-##
-# Fix wrong inst based on instid
 boards = update(
     boards,
     iddic.rename(columns={'id': 'instid'}),
