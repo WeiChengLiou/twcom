@@ -110,7 +110,7 @@ def fun(id_name, key, name):
 
     name1 = reduce(f_fixword, fixwords, name).strip()
 
-    if name1:
+    if name1 and (not name1.isdigit()) and (len(name1) > 3):
         id_name.append(key + (name1,))
 
 
@@ -558,10 +558,8 @@ id_name = id_name.drop(idmap.index)
 
 ##
 # Fix inst as board name
-ret = (
-    boards
-    [boards[u'姓名'].isin(id_name['name'])]
-)
+com_name = id_name['name'].rename(u'姓名').drop_duplicates().to_frame()
+ret = boards.merge(com_name)
 
 
 ##
