@@ -185,29 +185,6 @@ id_name = id_name[~id_name['name'].isin(skips)]
 
 
 ##
-df1 = id_name[~id_name.status.isin(bads)]
-# df2 = id_name[~id_name['name'].apply(chk_board)]
-s = chkdist(df1['name'])
-
-dbls = s[s.cnt > 1]['name']
-dbl_id = (
-    id_name
-    [id_name['name'].isin(dbls)]
-    ['name']
-    .drop_duplicates()
-    .tolist()
-)
-dbldic = (
-    id_name
-    [id_name.name.isin(dbls)]
-    .groupby('name')
-    ['id']
-    .apply(lambda x: list(x))
-    .to_dict()
-)
-
-
-##
 # Study bad company name
 def study_badname():
     li = []
@@ -233,8 +210,6 @@ ret = db.raw.find(
 boards = []
 for r in ret:
     for dic in r[u'董監事名單']:
-        dic['id'] = r['id']
-        boards.append(dic)
 boards = pd.DataFrame(boards)
 
 
