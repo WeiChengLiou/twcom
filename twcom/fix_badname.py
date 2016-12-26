@@ -6,7 +6,7 @@ import numpy as np
 import re
 import pandas as pd
 from twcom.utils import db, chk_board
-from twcom.work import show, yload
+from twcom.work import show, yload, replaces
 show(pd.__version__)
 
 
@@ -210,6 +210,9 @@ ret = db.raw.find(
 boards = []
 for r in ret:
     for dic in r[u'董監事名單']:
+        dic['id'] = r['id']
+        dic[u'職稱'] = replaces(dic[u'職稱'], ['\r', '\n', '\t']).strip()
+        boards.append(dic)
 boards = pd.DataFrame(boards)
 
 
