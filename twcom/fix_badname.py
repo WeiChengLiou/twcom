@@ -258,7 +258,6 @@ fixdic = (
         'index': 'name',
     })
 )
-fixdic.ix[fixdic['fix'] == u'', 'fix'] = np.nan
 # show(fixdic)
 
 
