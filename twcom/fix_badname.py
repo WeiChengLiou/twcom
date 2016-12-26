@@ -591,30 +591,11 @@ if len(ret) > 0:
 
 
 ##
-# Export instid==0 list
-ret = (
-    boards[boards['instid'] == 0]
-)
-orgs = ret['inst'].value_counts().sort_index()
+# Export organization list
+ret = boards[boards['inst'].notnull()]
+ret = ret[ret['instid'].apply(lambda x: 'T' in x)]
+orgs = chkdist(ret['inst'])
 orgs.to_csv('doc/org_list.csv', encoding='utf8', sep='\t')
-
-
-##
-# Generate organization list
-orglist = (
-    orgs
-    .reset_index()
-    .drop('inst', axis=1)
-    .rename(columns={'index': 'name'})
-)
-orglist['id'] = orglist['name']
-orglist['source'] = 'org'
-id_name = pd.concat([id_name, orglist]).reset_index(drop=True)
-"""
-合併 orglist 時，會有公司名稱跟現有清單重複的問題。
-但因為其董監事名單並無重複，
-故為保守起見還是列為新公司。
-"""
 
 
 ##
