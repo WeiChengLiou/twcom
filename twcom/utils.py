@@ -49,7 +49,10 @@ def init(db):
     return MongoClient(uri)[db]
 
 
-CONFIG = yaml.load(open('config.yaml'))
+if exists('config.yaml.bak'):
+    CONFIG = yaml.load(open('config.yaml.bak'))
+else:
+    CONFIG = yaml.load(open('config.yaml'))
 db = init(CONFIG['db'])
 
 
