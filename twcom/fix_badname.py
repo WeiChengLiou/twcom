@@ -558,8 +558,36 @@ id_name = id_name.drop(idmap.index)
 
 ##
 # Fix inst as board name
-com_name = id_name['name'].rename(u'姓名').drop_duplicates().to_frame()
+com_name = (
+    id_name['name']
+    .rename(u'姓名')
+    .drop_duplicates()
+    .to_frame()
+)
 ret = boards.merge(com_name)
+ret = (
+    ret[ret['instid'].isnull()]
+    [['id', u'姓名']]
+)
+ret1 = (
+    id_name
+    [id_name['name'].isin(ret[u'姓名'])]
+    .groupby('name')
+    .keyno
+    .first()
+    .reset_index()
+    .rename(columns={
+        'name': 'inst',
+        'keyno': 'instid'
+    })
+)
+ret1[u'姓名'] = ret1['inst']
+ret = ret.merge(ret1)
+if len(ret) > 0:
+    boards.set_index(['id', u'姓名'])
+    ret.set_index((['id', u'姓名']))
+    boards.update(ret)
+    boards.reset_index()
 
 
 ##
