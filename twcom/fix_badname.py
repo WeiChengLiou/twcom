@@ -247,7 +247,7 @@ inst = (
 inst['instid'], inst['inst'] = zip(*inst[u'所代表法人'].tolist())
 boards = boards.join(inst[['instid', 'inst']])
 
-# Check non exists id
+# Check non exists instid
 ids = inst['instid'].drop_duplicates()
 id2 = ids[~ids.isin(id_name['id'])]
 id2 = id2[id2 != 0]
@@ -261,7 +261,7 @@ if len(df_noid) > 0:
 
 
 ##
-# Check wrong name
+# Check wrong inst name
 fixdic = yload('doc/fix_board.yaml')
 
 rename_dic = {}
