@@ -3,11 +3,12 @@
 ##
 import numpy as np
 import pandas as pd
-from twcom.utils import db, chk_board
-from twcom.work import show, yload, replaces, getdf
+from twcom.utils import db
+from twcom.work import getdf
 from matplotlib import pylab as plt
 import seaborn as sns
 sns.set_context('poster')
+plt.ion()
 pd.__version__
 
 
@@ -32,12 +33,12 @@ ret = coll.aggregate([
     {'$sort': {'cnt': -1}},
     {'$limit': 1000}
 ])
-ret = getdf(ret)
 ret = (
-    ret
+    getdf(ret)
     .rename(columns={'_id': 'id'})
     .merge(iddic, how='left')
 )
+
 
 ##
 (
