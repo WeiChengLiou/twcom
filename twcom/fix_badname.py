@@ -142,6 +142,7 @@ id_name = (
     pd.DataFrame(id_name, columns=['id', 'status', 'word', 'name'])
 )
 id_name['source'] = 'cominfo'
+id_name = id_name.drop_duplicates()
 
 
 ##
