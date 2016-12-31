@@ -577,3 +577,19 @@ orgs.to_csv('doc/org_list.csv', encoding='utf8', sep='\t')
 
 
 ##
+# Write data into database
+# table: cominfo1
+coll = db.cominfo1
+coll.drop()
+coll.insert_many(id_name.to_dict('record'))
+print '%s inserted %s items' % (coll.name, coll.count())
+
+# table: boards1
+coll = db.boards1
+coll.drop()
+skip_rolls = (u'代表人', u'負責人', u'訴訟及非訴訟代理人')
+ret = boards[(~boards[u'職稱'].isin(skip_rolls))]
+coll.insert_many(ret.to_dict('record'))
+print '%s inserted %s items' % (coll.name, coll.count())
+
+##
