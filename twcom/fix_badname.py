@@ -187,11 +187,15 @@ ret = db.raw.find(
     {'_id': 0, u'董監事名單': 1, 'id': 1}
 )
 boards = []
+li = set()
 for r in ret:
     for dic in r[u'董監事名單']:
         dic['id'] = r['id']
         dic[u'職稱'] = replaces(dic[u'職稱'], ['\r', '\n', '\t']).strip()
-        boards.append(dic)
+        key = dic['id'], dic[u'姓名'], dic[u'序號']
+        if key not in li:
+            boards.append(dic)
+            li.add(key)
 boards = pd.DataFrame(boards)
 
 
@@ -548,6 +552,26 @@ if len(ret) > 0:
 
 
 ##
+# Clean up boards
+skip_rolls = (u'代表人', u'負責人', u'訴訟及非訴訟代理人')
+ret = boards[(~boards[u'職稱'].isin(skip_rolls))]
+cnt = (
+    ret[ret[u'姓名'] != u'']
+    .groupby(['id', u'姓名'])
+    [u'序號'].count()
+    .rename('cnt')
+)
+cnt = cnt[cnt > 1].reset_index().drop('cnt', axis=1)
+df2 = ret.merge(cnt).groupby(['id', u'姓名']).first().reset_index()
+ret = ret.merge(cnt, how='left', indicator=True)
+ret = pd.concat([
+    ret[ret['_merge'] == 'left_only'].drop('_merge', axis=1),
+    df2
+]).sort_values(['id', u'序號'])
+boards = ret
+
+
+##
 # Export organization list
 ret = boards[boards['inst'].notnull()]
 ret = ret[ret['instid'].apply(lambda x: 'T' in x)]
@@ -563,11 +587,10 @@ coll.drop()
 coll.insert_many(id_name.to_dict('record'))
 print '%s inserted %s items' % (coll.name, coll.count())
 
+##
 # table: boards1
 coll = db.boards1
 coll.drop()
-skip_rolls = (u'代表人', u'負責人', u'訴訟及非訴訟代理人')
-ret = boards[(~boards[u'職稱'].isin(skip_rolls))]
 coll.insert_many(ret.to_dict('record'))
 print '%s inserted %s items' % (coll.name, coll.count())
 
