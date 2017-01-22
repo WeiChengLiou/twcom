@@ -591,7 +591,7 @@ print '%s inserted %s items' % (coll.name, coll.count())
 # table: boards1
 coll = db.boards1
 coll.drop()
-coll.insert_many(ret.to_dict('record'))
+coll.insert_many(boards.to_dict('record'))
 print '%s inserted %s items' % (coll.name, coll.count())
 
 ##
