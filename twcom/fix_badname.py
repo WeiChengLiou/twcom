@@ -34,15 +34,11 @@ def update(df0, df1, col, col1=None):
     cols = df0.columns
     if col1 is None:
         col1 = col
-    ret = (
-        df0
-        .merge(df1.rename(columns={col1: 'fix'}), how='left')
-    )
+    ret = df0.merge(df1.rename(columns={col1: 'fix'}), how='left')
     ret['fix'] = ret['fix'].fillna(ret[col])
     assert ret.shape[0] == df0.shape[0]
     return (
-        ret
-        .drop(col, axis=1)
+        ret.drop(col, axis=1)
         .rename(columns={'fix': col})
         [cols]
     )
@@ -54,30 +50,12 @@ def grp_unify(df):
     lvls = range(df.index.nlevels)
     col = df.name
     colfix = col + 'fix'
-    cnt = (
-        df.groupby(level=lvls)
-        .count()
-    )
+    cnt = df.groupby(level=lvls).count()
     cnt = cnt[cnt > 1]
     if len(cnt) > 0:
-        df1 = (
-            df.ix[cnt.index]
-            .copy()
-            .to_frame()
-        )
-        df2 = (
-            df1
-            .groupby(level=lvls)
-            [col]
-            .min()
-            .rename(colfix)
-        )
-        df3 = (
-            df1
-            .reset_index()
-            .merge(df2.reset_index())
-            .drop_duplicates()
-        )
+        df1 = df.ix[cnt.index].copy().to_frame()
+        df2 = df1.groupby(level=lvls)[col].min().rename(colfix)
+        df3 = df1.reset_index().merge(df2.reset_index()).drop_duplicates()
         return df3
     else:
         return None
