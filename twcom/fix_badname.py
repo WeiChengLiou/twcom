@@ -319,7 +319,7 @@ def parse_name(name):
 
     li.extend(name.split(','))
     li = [x.strip() for x in li]
-    return list(it.ifilter(len_filter, li))
+    return list(filter(len_filter, li))
 
 
 ##
@@ -333,7 +333,7 @@ titles = [x[1] for x in namecol]
 boards = boards[~boards[u'職稱'].isin(titles)]
 
 for c, title in namecol:
-    print c
+    print(c)
     ret = db.raw.find(
         {c: {'$exists': 1, '$ne': u''}},
         {'_id': 0, 'id': 1, c: 1}
@@ -478,7 +478,7 @@ boards = pd.concat([boards, ret_boards])
 id_name['keyno'] = id_name['id']
 cnt = 0
 while 1:
-    print 'Big loop'
+    print('Big loop')
     id_fix = (
         grp_unify(id_name.set_index(['name'])['keyno'])
         .drop('name', axis=1)
@@ -490,7 +490,7 @@ while 1:
         ['keynofix']
     )
     if df1_fix is not None:
-        print 'sub update'
+        print('sub update')
         id_fix = (
             update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
             .drop_duplicates()
@@ -585,13 +585,13 @@ orgs.to_csv('doc/org_list.csv', encoding='utf8', sep='\t')
 coll = db.cominfo1
 coll.drop()
 coll.insert_many(id_name.to_dict('record'))
-print '%s inserted %s items' % (coll.name, coll.count())
+print('%s inserted %s items' % (coll.name, coll.count()))
 
 ##
 # table: boards1
 coll = db.boards1
 coll.drop()
 coll.insert_many(boards.to_dict('record'))
-print '%s inserted %s items' % (coll.name, coll.count())
+print('%s inserted %s items' % (coll.name, coll.count()))
 
 ##

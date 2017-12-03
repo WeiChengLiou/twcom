@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from pdb import set_trace
-import abc
 
 
 class cusset(set):
     pass
 
 
-class groupset(abc.types.ListType):
+class groupset(list):
     """Clustering different coms with com connections"""
     @classmethod
     def fromdict(cls, dic):
@@ -27,14 +26,14 @@ class groupset(abc.types.ListType):
                 self.add(k, v)
 
     def add(self, id, *args, **kwargs):
-        id = unicode(id)
+        # id = unicode(id)
         grp = self.getgrp(id)
         if grp is None:
             self.append(cusset([id]))
             grp = self.getgrp(id)
 
         for id1 in args:
-            id1 = unicode(id1)
+            # id1 = unicode(id1)
             grp1 = self.getgrp(id1)
             if grp1 and (grp != grp1):
                 grp.update(grp1)
@@ -66,13 +65,13 @@ def test():
     grps = groupset()
     grps.add('a', 'b')
     grps.add('c')
-    grps.add('d','e')
+    grps.add('d', 'e')
 
     for k in grps:
         setattr(k, '_id', ''.join(k))
-        print k, k._id
+        print(k, k._id)
+
 
 if __name__ == '__main__':
     """"""
     test()
-

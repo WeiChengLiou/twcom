@@ -4,3 +4,5 @@ test/*.html
 test/*.json
 *.log
 *.ipynb
+pwd.yaml
+config.yaml

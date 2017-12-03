@@ -7,7 +7,7 @@ from vis import output as opt
 
 def test_comboss():
     id = getid(u'東賢投資有限公司')
-    print id
+    print(id)
     names, coms = zip(*[x.split('\t') for x in getcomboss(id)])
     show(names)
     comdic = defaultdict(int)
@@ -28,32 +28,32 @@ def test_comboss():
     ids = df[df['ratio'] > 50].index.tolist()
 
     for id in ids:
-        print id, getname(id)
+        print(id, getname(id))
     return ids
 
 
 def test_boss_network():
     id = getid(u'中央投資股份有限公司')
-    print id
+    print(id)
     names = list(getcomboss(id))
     G = get_boss_network(names, maxlvl=1)
-    print len(G.node), sum([len(v) for k, v in G.edge.iteritems()])
+    print(len(G.node), sum([len(v) for k, v in G.edge.iteritems()]))
 
     fi = 'test_bossnet'
     path = 'test'
     exp_boss(G, fi=fi, path=path)
     opt.write_d3(fi, path=path)
-    print 'export boss network'
+    print('export boss network')
 
 
 def test_com_network():
     id = getid(u'中央投資股份有限公司')
-    print id
+    print(id)
     G = get_network(id, maxlvl=1)
-    print len(G.node), sum([len(v) for k, v in G.edge.iteritems()])
+    print(len(G.node), sum([len(v) for k, v in G.edge.iteritems()]))
 
     fi = 'test_comnet'
     path = 'test'
     exp_company(G, fi=fi, path=path)
     opt.write_d3(fi, path=path)
-    print 'export company network'
+    print('export company network')

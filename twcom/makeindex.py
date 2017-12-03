@@ -6,21 +6,24 @@ import gzip
 import os
 import json
 import itertools as it
+from glob import glob
 from traceback import print_exc
 from pdb import set_trace
 from collections import defaultdict
 import yaml
 from datetime import datetime
-from pymongo.errors import DuplicateKeyError
 import time
-from work import yload, replaces, ysave, get_funname, chunk, groupdic
-from work import deprecated, trytest
-from utils import db, logger, getbadcoms
+from functools import reduce
+from pymongo.errors import DuplicateKeyError
+from pymongo import ASCENDING
+from twcom.work import yload, replaces, ysave, get_funname, chunk, groupdic
+from twcom.work import deprecated, trytest
+from twcom.utils import db, logger, getbadcoms
 CONFIG = yaml.load(open('config.yaml'))
 path = 'files'
 path = 'TW Company Download/files'
-path = '{0}/files'.format(CONFIG['src'])
-print path
+path = '{0}'.format(CONFIG['src'])
+print(path)
 errcol = {}
 errid = {}
 
@@ -32,10 +35,8 @@ filedic = yaml.load(open('filespec.yaml'))
 tblcol = yaml.load(open('tblcol.yaml'))
 
 
-fis = sorted(list(it.ifilter(
-    lambda x: ('bussiness' not in x) and ('0000' in x),
-    os.listdir(path))))
-fis1 = it.ifilter(lambda x: x[0] == '0', fis)
+fis = glob('{}/*.json.gz'.format(path))
+fis = sorted(filter(lambda x: re.search('^\d+', os.path.basename(x)), fis))
 
 
 class adjname(object):
@@ -44,7 +45,11 @@ class adjname(object):
     @staticmethod
     def run(v):
         return reduce(lambda x, y: x.replace(*y),
-                      adjname.fixwordli.iteritems(), v)
+                      adjname.fixwordli.items(), v)
+
+
+def reduce_count(iters):
+    return reduce(lambda x, y: x+1, iters, 0)
 
 
 # 每個 json item 可分為以下類別
@@ -55,9 +60,10 @@ class adjname(object):
 # 本土或外資在台註冊企業： baseinfo
 
 
+##
 class ComItem(object):
     def __init__(self, kv):
-        self.id = kv[0]
+        self.id = kv.pop('id')
 
 #         fkeys = (
 #             u'在中華民國境內營運資金',
@@ -65,36 +71,38 @@ class ComItem(object):
 #         )
 
         # 初次對 json 分類為不同類別
-        if u'組織類型' in kv[1]:
+        if u'組織類型' in kv:
             self.tbl = 'indinfo'
-            self.read(kv, filedic['indinfo'])
-        elif ((u'分公司名稱' in kv[1]) and (u'公司名稱' in kv[1])) or\
-                (u'核准認許日期' in kv[1]):
+            self.read(kv, 'indinfo')
+        elif ((u'分公司名稱' in kv) and (u'公司名稱' in kv)) or\
+                (u'核准認許日期' in kv):
             self.tbl = 'fbranchinfo'
-            self.read(kv, filedic['fbranchinfo'])
-        elif u'辦事處所在地' in kv[1]:
+            self.read(kv, 'fbranchinfo')
+        elif u'辦事處所在地' in kv:
             self.tbl = 'fagentinfo'
-            self.read(kv, filedic['fagentinfo'])
-        elif u'分公司名稱' in kv[1]:
+            self.read(kv, 'fagentinfo')
+        elif u'分公司名稱' in kv:
             self.tbl = 'branchinfo'
-            self.read(kv, filedic['branchinfo'])
+            self.read(kv, 'branchinfo')
         else:
             self.tbl = 'baseinfo'
-            self.read(kv, filedic['baseinfo'])
+            self.read(kv, 'baseinfo')
 
-    def read(self, kv, coldic):
+    def read(self, kv, comtype):
+        coldic = filedic[comtype]
         errkey = []
-        for k, v in kv[1].iteritems():
+        for k, v in kv.items():
             key = coldic.get(k)
             if not key:
                 # 遇到異常欄位就要先註記再即時 debug
                 if k not in errcol.keys():
                     # 列出異常欄位名稱與公司統編
-                    print u'Unknown Column:', kv[0], self.tbl, k
+                    print(u'Unknown Column:', self.id, self.tbl, k)
                     errcol[k] = (self.id, v)
                 if not errid.get(self.id):
-                    errid[self.id] = (self.id, kv[1])
-                errkey.append(key)
+                    errid[self.id] = (self.id, kv)
+                print('ErrKey append: %s' % k)
+                errkey.append(k)
             else:
                 self.process(key, v)
         if errkey:
@@ -136,8 +144,11 @@ class ComItem(object):
                 set_trace()
         elif key == 'status':
             v = replaces(v, (u' ', u'　', 'null'))
+        elif key == 'equity':
+            for boss in v:
+                v[boss] = int(v[boss])
 
-        self.__dict__[key] = v if not isinstance(v, basestring) else v.strip()
+        self.__dict__[key] = v if not isinstance(v, str) else v.strip()
 
     def insinfo(self):
         # 輸入公司基本資料，每間公司有自己的類別
@@ -156,7 +167,7 @@ class ComItem(object):
         items['boardcnt'] = len(items['boards'])
 
         try:
-            db.cominfo.insert(items)
+            db.cominfo.insert_one(items)
         except:
             print_exc()
             set_trace()
@@ -174,17 +185,17 @@ class ComItem(object):
         cnt = 0
         for boss in self.boards:
             vs = {}
-            for col, v in boss.iteritems():
+            for col, v in boss.items():
                 if col == u'所代表法人':
                     if isinstance(v, list):
-                        vs['repr_inst'] = v[1]
-                        vs['repr_instid'] = v[0]
+                        vs['repr_inst'] = str(v[1])
+                        vs['repr_instid'] = str(v[0])
                     else:
-                        vs['repr_inst'] = v
+                        vs['repr_inst'] = str(v)
                         vs['repr_instid'] = '0'
                     vs['repr_inst'] = adjname.run(vs['repr_inst'])
                 else:
-                    vs[boardic[col]] = v if not isinstance(v, basestring)\
+                    vs[boardic[col]] = v if not isinstance(v, str)\
                         else v.strip()
 
             vs['name'] = adjname.run(vs['name'])
@@ -214,33 +225,32 @@ class ComItem(object):
         for boss in self.boards:
             vs = {'id': self.id,
                   'source': 'twcom'}
-            for col, v in boss.iteritems():
+            for col, v in boss.items():
                 if col == u'所代表法人':
                     if isinstance(v, list):
-                        vs['repr_inst'] = v[1]
-                        vs['repr_instid'] = v[0]
+                        vs['repr_inst'] = str(v[1])
+                        vs['repr_instid'] = str(v[0])
                     else:
-                        vs['repr_inst'] = v
+                        vs['repr_inst'] = str(v)
                         vs['repr_instid'] = '0'
                     vs['repr_inst'] = adjname.run(vs['repr_inst'])
                 else:
-                    vs[boardic[col]] = v if not isinstance(v, basestring)\
+                    vs[boardic[col]] = v if not isinstance(v, str)\
                         else v.strip()
 
             vs['name'] = adjname.run(vs['name'])
-            kvs = tuple([vs[k] for k in (
-                'id', 'name', 'repr_inst', 'repr_instid')])
+            kvs = tuple(str(vs[k]) for k in (
+                'id', 'name', 'repr_inst', 'repr_instid'))
             if kvs in sets:
                 # 另外紀錄董監事名單裡重複的名字
                 with open('boards_dbl.csv', 'a') as f:
-                    f.write(u','.join(map(unicode, kvs)).encode('utf8'))
-                    f.write(u'\n'.encode('utf8'))
+                    f.write(u','.join(kvs) + '\n')
                 continue
             else:
                 sets.add(kvs)
 
                 try:
-                    db.boards.insert(vs)
+                    db.boards.insert_one(vs)
                     cnt += 1
                 except:
                     print_exc()
@@ -249,51 +259,26 @@ class ComItem(object):
         self.boardcnt = cnt
 
 
+##
 def getfile(dst):
-    print "Please goto 'http://gcis.nat.g0v.tw/'"
-
-
-def instbl(*kv):
-    # 處理每筆 json item 至資料庫
-    obj = ComItem(kv)
-    obj.insboards()
-    obj.insinfo()
-
-
-def tblcnt(kv):
-    # 對每筆 json items 統計總樣本數
-    global comcnt
-    comcnt = 0
-    obj = ComItem(kv)
-    if 'boardcnt' in obj.__dict__ and obj.boardcnt > 0 and u'核准' in obj.status:
-        comcnt += 1
+    print("Please goto 'http://gcis.nat.g0v.tw/'")
 
 
 def readg(fi):
     # Read gzip file
     def dicfun(li):
         # decode line into key-value pair
-        return li[:8], json.loads(li[9:])
+        return li[:8].decode('utf8'), json.loads(li[9:])
 
     try:
         g = gzip.open(os.path.join(path, fi))
         for li in g:
             yield dicfun(li)
     except:
-        print sys.exc_info()
+        print(sys.exc_info())
     finally:
-        print 'close %s' % fi
+        print('close %s' % fi)
         g.close()
-
-
-def runjobs(*args):
-    # 逐檔案、逐 json item 執行給定函數
-    kvs = it.chain.from_iterable(it.imap(readg, fis))
-
-    def f1(kv):
-        return map(lambda fun: fun(kv), args)
-
-    map(f1, kvs)
 
 
 def insraw():
@@ -305,10 +290,10 @@ def insraw():
     def fun(kv):
         kv[1]['id'] = kv[0]
         return (kv[1])
-    kvs = it.chain.from_iterable(it.imap(readg, fis))
+    kvs = it.chain.from_iterable(map(readg, fis))
 
     li = []
-    for x in it.imap(fun, kvs):
+    for x in map(fun, kvs):
         li.append(x)
         if len(li) == 50000:
             coll.insert_many(li)
@@ -317,33 +302,40 @@ def insraw():
         coll.insert_many(li)
 
 
+##
 def refresh():
     # 新增、處理資料庫
 
     # cn = init(CONFIG['db'])
     db.cominfo.drop()
-    db.cominfo.ensure_index([('id', 1)], unique=True)
+    db.cominfo.create_index([('id', ASCENDING)], unique=True)
     db.boards.drop()
-    db.boards.ensure_index(
-        [
-            ('id', 1), ('name', 1),
-            ('repr_instid', 1), ('repr_inst', 1),
-            ('title', 1), ('equity', 1)],
-        unique=True)
+    db.boards.create_index([
+        ('id', ASCENDING),
+        ('name', ASCENDING),
+        ('repr_instid', ASCENDING),
+        ('repr_inst', ASCENDING),
+        ('title', ASCENDING),
+        ('equity', ASCENDING)
+        ], unique=True)
     f = open('boards_dbl.csv', 'w')
     f.close()
-#     runjobs(instbl)
 
-    def fun(kv):
-        id = kv['id']
-        del kv['id']
-        instbl(id, kv)
+    def instbl(kv):
+        # 處理每筆 json item 至資料庫
+        obj = ComItem(kv)
+        obj.insboards()
+        obj.insinfo()
 
-    map(fun, db.raw.find({}, {'_id': 0}))
+    cnt = reduce_count(map(instbl, db.raw.find({}, {'_id': 0})))
+    print('Processed %d items' % cnt)
+    print('cominfo get %d items' % db.cominfo.count())
+    print('boards get %d items' % db.boards.count())
 
     # fixing()
 
 
+##
 def genbadstatus():
     # return bad company status
     status = set()
@@ -385,7 +377,7 @@ def fixing():
         # rm_badcomivst()
 
     # if nations:
-    #     cPickle.dump((nations,), open('dics.dat', 'wb'), True)
+    #     pickle.dump((nations,), open('dics.dat', 'wb'), True)
 
 
 def defnation():
@@ -399,13 +391,13 @@ def defnation():
         i = name.index(u'商')
         nations.add(name[:(i+1)])
     nations = list(nations)
-    print len(nations)
+    print(len(nations))
     return nations
 
 
 def ins_iddic():
     # 新增公司名稱與統編對照（僅留下經營中公司）
-    print get_funname()
+    print(get_funname())
     db.iddic.drop()
 
     def ins_update(name, id):
@@ -427,23 +419,25 @@ def ins_iddic():
         ins_update(r['name'], r['id'])
         if 'name1' in r:
             ins_update(r['name1'], r['id'])
-    db.iddic.insert(
-        [{'name': k, 'id': v} for k, v in iddic.iteritems()])
-    db.iddic.ensure_index([('name', 1)])
+    db.iddic.insert_many(
+        [{'name': k, 'id': v} for k, v in iddic.items()])
+    db.iddic.create_index([('name', 1)])
 
 
 def ins_comivsts():
     # 新增公司連結母函數
     badcoms = getbadcoms()
     db.comivst.drop()
-    db.comivst.ensure_index([
+    db.comivst.create_index([
         ('src', 1), ('dst', 1)])
     comall = set()
     [comall.add(r['id']) for r in db.boards.find()]
-    map(lambda coms: ins_comivst(coms, badcoms),
-        chunk(list(comall), 200))
+    reduce_count(
+        map(lambda coms: ins_comivst(coms, badcoms),
+            chunk(sorted(comall), 200)))
 
 
+##
 def ins_comivst(coms, badcoms):
     # 新增公司連結子函數
     seatdic = {
@@ -458,13 +452,13 @@ def ins_comivst(coms, badcoms):
     dic = groupdic(db.boards.find(query,
                    ['id', 'name', 'repr_instid', 'repr_inst']),
                    lambda r: (r['id'], r['repr_instid'], r['repr_inst']))
-    for (dstid, instid, inst), rs in dic.iteritems():
+    for (dstid, instid, inst), rs in dic.items():
         cnt = len(rs)
         if dstid in seatdic:
             cntr = round(float(cnt)/seatdic[dstid]*100, 2)
         else:
             cntr = None
-        if instid != 0:
+        if instid != '0':
             srcid = instid
         else:
             srcid = inst
@@ -476,13 +470,14 @@ def ins_comivst(coms, badcoms):
             'seatratio': cntr,
             'death': sum([(il in badcoms) for il in (srcid, dstid)]),
             }
-        db.comivst.insert(items)
+        db.comivst.insert_one(items)
 
         chkdic[srcid].update([r['name'] for r in rs])
 
     fill_hideboss(chkdic)
 
 
+##
 def get_degree(db):
     # 取得連結數資訊
     dic = defaultdict(dict)
@@ -493,7 +488,7 @@ def get_degree(db):
 
     def update(r, tbl):
         d = dic[r.pop('_id')]
-        [d.__setitem__(coldic[(tbl, k)], v) for k, v in r.iteritems()]
+        [d.__setitem__(coldic[(tbl, k)], v) for k, v in r.items()]
 
     for col in ('$src', '$dst'):
         ret = db.comivst.aggregate([{'$group': {
@@ -505,24 +500,25 @@ def get_degree(db):
     return dic
 
 
+##
 def fill_hideboss(chkdic):
     # 新增各公司非董監事的法人代表
-    for r in db.boards.find({'id': {'$in': chkdic.keys()}}):
+    for r in db.boards.find({'id': {'$in': list(chkdic)}}):
         if r['id'] in chkdic and r['name'] in chkdic[r['id']]:
             chkdic[r['id']].remove(r['name'])
 
     # lock = 0
     # reprdic = defaultdict(list)
-    for id, names in chkdic.iteritems():
+    for id, names in chkdic.items():
         for name in names:
             dic = {'id': id,
                    'name': name,
                    'title': u'法人代表',
                    'repr_inst': u'',
-                   'repr_instid': 0,
+                   'repr_instid': '0',
                    'target': id,
                    'equity': 0}
-            db.boards.save(dic)
+            db.boards.insert_one(dic)
 
     #         del(dic['id'], dic['target'], dic['_id'])
     #         reprdic[id].append(dic)
@@ -532,7 +528,7 @@ def fill_hideboss(chkdic):
     #     r['boards'].extend(reprdic.pop(r['id']))
     #     r['boardcnt'] = len(r['boards'])
     #     db.cominfo.save(r)
-    # for id, boards in reprdic.iteritems():
+    # for id, boards in reprdic.items():
     #     dic = {'id': id,
     #            'name': id,
     #            'boards': boards
@@ -540,6 +536,7 @@ def fill_hideboss(chkdic):
     #     db.cominfo.save(dic)
 
 
+##
 @deprecated
 def rm_badcomivst():
     # 移除公司連結裡非營業中的企業。
@@ -551,7 +548,7 @@ def rm_badcomivst():
         dic = {'id': {'$in': list(coms)},
                'status': {'$in': list(bads)}}
         badcoms = db.cominfo.find(dic).distinct('id')
-        print 'badcoms count: {0}'.format(len(badcoms))
+        print('badcoms count: {0}'.format(len(badcoms)))
         db.comivst.remove({'src': {'$in': badcoms}})
         db.comivst.remove({'dst': {'$in': badcoms}})
     except:
@@ -561,7 +558,7 @@ def rm_badcomivst():
 
 def update(collection, condition, setval, errfun=None):
     for x in collection.find(condition):
-        for k, v in setval.iteritems():
+        for k, v in setval.items():
             x[k] = v
         while 1:
             try:
@@ -587,7 +584,7 @@ def fixboards():
         logger.info('fixboards: {0} / {1}'.format(i, totcnt))
         errcnt, li = fixboard(x)
         toterr += errcnt
-    print 'update {0} records'.format(toterr)
+    print('update {0} records'.format(toterr))
     return toterr
 
 
@@ -599,11 +596,11 @@ def fixboards1():
     totcnt = len(reprids) / 200 + 1
     logger.info('fixboards:  Total Count - {0}'.format(len(reprids)))
     toterr = 0
-    for i, x in enumerate(chunk(reprids, step)):
+    for i, names in enumerate(chunk(reprids, step)):
         logger.info('fixboards: {0} / {1}'.format(i, totcnt))
-        errcnt = fixboard1(x)
+        errcnt = fixboard1(names)
         toterr += errcnt
-    print 'update {0} records'.format(toterr)
+    print('update {0} records'.format(toterr))
     return toterr
 
 
@@ -612,10 +609,10 @@ def fixboard(names):
     cnt, li = 0, []
 
     def upd_item(collections, item, truedic):
-        [item.__setitem__(k, v) for k, v in truedic.iteritems()]
+        [item.__setitem__(k, v) for k, v in truedic.items()]
         while 1:
             try:
-                collections.save(item)
+                collections.replace_one({'_id': item['_id']}, item)
                 break
             except:
                 item['equity'] += 1
@@ -625,7 +622,7 @@ def fixboard(names):
         key = r['repr_instid'], r['repr_inst']
         dic[key].append(r)
 
-    for key, items in dic.iteritems():
+    for key, items in dic.items():
         id, name = key
 
         try:
@@ -643,6 +640,8 @@ def fixboard(names):
                 # 從法人代表公司名稱反查法人代表統編
                 ret = db.iddic.find_one({'name': name})
                 if ret is None:
+                    continue
+                if id == '0':
                     continue
 
                 ids = ret['id']
@@ -665,6 +664,7 @@ def fixboard(names):
     return cnt, li
 
 
+##
 @trytest
 def fixboard1(names):
     # 修正董監事名單（子函數）
@@ -675,7 +675,7 @@ def fixboard1(names):
         chg = 0
         dic = groupdic(r['boards'],
                        lambda r1: (r1['repr_instid'], r1['repr_inst']))
-        for key, items in dic.iteritems():
+        for key, items in dic.items():
             id, name = key
 
             if id and (len(id) == 8):
@@ -694,6 +694,8 @@ def fixboard1(names):
                 ret = db.iddic.find_one({'name': name})
                 if ret is None:
                     continue
+                if id == '0':
+                    continue
 
                 ids = ret['id']
                 if len(ids) == 1:
@@ -708,19 +710,22 @@ def fixboard1(names):
         if chg == 1:
             li[r['id']] = r
 
-    if li:
-        map(db.cominfo.save, li.values())
+    for rec in li.values():
+        id = rec.pop('_id')
+        db.cominfo.replace_one({'_id': id}, rec)
+
     return len(li)
 
 
+##
 def fixdata():
     # 修正董監事資料錯別字
     fi = 'doc/fix_board.yaml'
-    for k, v in yload(fi).iteritems():
+    for k, v in yload(fi).items():
         v = adjname.run(v)
         try:
-            assert(isinstance(k, unicode))
-            assert(isinstance(v, unicode))
+            assert(isinstance(k, str))
+            assert(isinstance(v, str))
         except:
             print_exc()
             set_trace()
@@ -732,9 +737,9 @@ def fixdata():
                 try:
                     assert(len(ret['id']) == 1)
                 except:
-                    print 'Duplicate id: ', v
+                    print('Duplicate id: ', v)
                     for r in ret['id']:
-                        print r
+                        print(r)
                 upd['repr_instid'] = ret['id'][0]
 
             update(db.boards, {'repr_inst': k}, upd)
@@ -745,11 +750,11 @@ def fixdata():
 
 def fixdata1():
     # 修正董監事資料錯別字
-    print get_funname()
+    print(get_funname())
     fi = 'doc/fix_board.yaml'
     dic = {}
 
-    for k, v in yload(fi).iteritems():
+    for k, v in yload(fi).items():
         v = adjname.run(v)
         upd = {'repr_inst': v}
         ret = db.iddic.find_one({'name': v})
@@ -759,25 +764,27 @@ def fixdata1():
                 assert(len(ret['id']) == 1)
                 upd['repr_instid'] = ret['id'][0]
             except:
-                print 'Duplicate id: ', v
+                print('Duplicate id: ', v)
                 for r in ret['id']:
-                    print r
+                    print(r)
 
         dic[k] = upd
 
     li1 = []
-    for r in db.cominfo.find():
+    for r in db.cominfo.find({'boards.repr_inst': {'$in': list(dic)}}):
         chg = 0
         for boss in r['boards']:
-            try:
-                [boss.__setitem__(k1, v1) for k1, v1
-                    in dic[boss['repr_inst']].iteritems()]
+            dic1 = dic.get(boss['repr_inst'])
+            if dic1:
+                print(boss['repr_inst'])
+                [boss.__setitem__(k1, v1) for k1, v1 in dic1.items()]
                 chg = 1
-            except:
-                """"""
         if chg:
             li1.append(r)
-    map(db.cominfo.save, li1)
+
+    for x in li1:
+        id = x.pop('_id')
+        db.cominfo.replace_one({'_id': id}, x)
 
 
 def get_rawinfo(id):
@@ -810,7 +817,7 @@ def defnamedic():
             chkname(iddic, r['name1'])
             iddic[r['name1']].append((r['id'], 1))
 
-    print len(iddic), len(namedic)
+    print(len(iddic), len(namedic))
     return iddic, namedic
 
 

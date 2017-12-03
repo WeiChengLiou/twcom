@@ -17,17 +17,17 @@ def resetComnetBoss():
     badcoms = getbadcoms()
     obj, G = setComnetBoss(badcoms)
     # save((obj, G, badcoms), 'test1.pkl.gz')
-    # obj, G, badcoms = cPickle.load(gzip.open('test.pkl', 'rb'))
+    # obj, G, badcoms = pickle.load(gzip.open('test.pkl', 'rb'))
     updivst(obj, G, badcoms)
     insComBosslink(G)
     bossdic = makeboss(obj, G)
     # save((bossdic, ), 'test2.pkl.gz')
-    # bossdic = cPickle.load(gzip.open('test2.pkl', 'rb'))[0]
+    # bossdic = pickle.load(gzip.open('test2.pkl', 'rb'))[0]
     updboards(obj, G, bossdic)
 
 
 def setComnetBoss(badcoms):
-    print get_funname()
+    print(get_funname())
     obj = sm()
     ret = db.cominfo.find({}, {'id': 1, 'boards': 1})
     for r in ret:
@@ -51,7 +51,7 @@ def setComnetBoss(badcoms):
 
 
 def addBoard(obj, instid, names):
-    obj.add(instid, list(it.ifilter(chk_board, names)))
+    obj.add(instid, list(filter(chk_board, names)))
 
 
 def chkBoard(obj, instid, names):
@@ -61,9 +61,9 @@ def chkBoard(obj, instid, names):
     def f(name):
         return chk_board(name) and f2(name)
 
-    names = list(it.ifilter(f, names))
+    names = list(filter(f, names))
     if names:
-        print u','.join(names)
+        print(u','.join(names))
         addBoard(obj, instid, names)
         insReprInfo(instid, names)
 
@@ -97,7 +97,7 @@ def insReprInfo(id, names):
 
 
 def updivst(obj, G, badcoms, cond=None):
-    print get_funname()
+    print(get_funname())
     # update inst ivst information
 
     def update(r):
@@ -139,7 +139,7 @@ def updivst(obj, G, badcoms, cond=None):
 
 
 def insComBosslink(G):
-    print get_funname()
+    print(get_funname())
     db.ComBosslink.drop()
     for x in G.edges():
         dic = {'src': x[0], 'dst': x[1]}
@@ -148,7 +148,7 @@ def insComBosslink(G):
 
 
 def makeboss(obj, G):
-    print get_funname()
+    print(get_funname())
     db.bossnode.drop()
 
     bossdic = defaultdict(groupset)
@@ -161,7 +161,7 @@ def makeboss(obj, G):
 
     # bossobj = sm()
     for k, vs in bossdic.iteritems():
-        # print k, v
+        # print(k, v)
         for v in vs:
             doc = {'name': k, 'orgs': list(v)}
             db.bossnode.insert(doc)
@@ -184,7 +184,7 @@ def insbosslink(bossobj):
 
 
 def updboards(obj, G, bossdic):
-    print get_funname()
+    print(get_funname())
     ret = db.cominfo.find({'boardcnt': {'$gt': 0}})
 
     for r in ret:

@@ -3,10 +3,10 @@
 import pandas as pd
 import inspect
 from collections import defaultdict
-import itertools as it
 import time
-import cPickle
+import pickle
 import gzip
+from functools import reduce
 from traceback import print_exc
 from pdb import set_trace
 import yaml
@@ -18,7 +18,7 @@ def timeit(func):
         t0 = time.time()
         ret = func(*args, **kwargs)
         t1 = time.time()
-        print 'Running {0:1.4f} seconds'.format(t1 - t0)
+        print('Running {0:1.4f} seconds'.format(t1 - t0))
         return ret
     return run
 
@@ -39,12 +39,12 @@ def getitem(dicli, col):
 
 def chunk(x, n=1):
     """ Split list into every size-n chunk """
-    for i in xrange(0, len(x), n):
+    for i in range(0, len(x), n):
         yield x[i:(i+n)]
 
 
 def take(li, n):
-    for i, x in it.ifilter(lambda y: y[0] < n, enumerate(li)):
+    for i, x in filter(lambda y: y[0] < n, enumerate(li)):
         yield x
 
 
@@ -73,12 +73,12 @@ def strin(s1, strs):
 
 
 def show(dic):
-    print json.dumps(
+    print(json.dumps(
         dic,
         sort_keys=True,
         ensure_ascii=False,
         indent=2
-    )
+    ))
 
 
 def replaces(str0, words):
@@ -106,18 +106,18 @@ def trytest(func):
 
 def deprecated(func):
     def run(*args, **kwargs):
-        print func.__name__, 'is going to be deprecated.'
+        print(func.__name__, 'is going to be deprecated.')
         return func(*args, **kwargs)
     return run
 
 
 def save(obj, fi):
-    cPickle.dump(obj, gzip.open(fi, 'wb'))
-    print '%s saved' % fi
+    pickle.dump(obj, gzip.open(fi, 'wb'))
+    print('%s saved' % fi)
 
 
 def load(fi):
-    return cPickle.load(gzip.open(fi, 'rb'))
+    return pickle.load(gzip.open(fi, 'rb'))
 
 
 def yload(fi):
@@ -147,10 +147,10 @@ def ysave(obj, fi, debug=0):
     with open(fi, 'wb') as f:
         s = u'\n'.join(list(toyaml(obj)))
         if debug:
-            print s
+            print(s)
         else:
             f.write(s.encode('utf8'))
-    print '%s saved' % fi
+    print('%s saved' % fi)
 
 
 def yread(fi):
@@ -159,7 +159,7 @@ def yread(fi):
         for li in f:
             if '#' in li[0]:
                 continue
-            ret.append(li.replace('\n', '').decode('utf8'))
+            ret.append(li.replace('\n', ''))
     return ret
 
 

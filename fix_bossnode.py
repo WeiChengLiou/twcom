@@ -79,7 +79,7 @@ df0 = (boards[['id', u'姓名', 'ref']])
 # link by company link
 links = getdf(db.ComLink1.find({}, {'src': 1, 'dst': 1, '_id': 0}))
 df0 = upd_link(df0, links)
-print df0.shape
+print(df0.shape)
 
 
 ##
@@ -101,7 +101,7 @@ while 1:
 
     df0 = upd_link(df0, df2)
     cnt1 = df0['ref'].drop_duplicates().shape
-    print cnt, cnt1
+    print(cnt, cnt1)
     if cnt == cnt1:
         break
     cnt = cnt1
@@ -116,6 +116,6 @@ boards = boards.drop('ref', axis=1).merge(df0)
 coll = db.boards1
 coll.drop()
 coll.insert_many(boards.to_dict('record'))
-print '%s inserted %s items' % (coll.name, coll.count())
+print('%s inserted %s items' % (coll.name, coll.count()))
 
 ##

@@ -3,8 +3,8 @@
 import itertools as it
 from collections import defaultdict
 import pandas as pd
-from utils import db, insitem, chk_board
-from work import getdf
+from twcom.utils import db, insitem, chk_board
+from twcom.work import getdf
 from twcom import query
 from bson.son import SON
 import networkx as nx

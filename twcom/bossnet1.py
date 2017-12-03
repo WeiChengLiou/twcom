@@ -10,8 +10,8 @@ from pdb import set_trace
 from traceback import print_exc
 from collections import defaultdict
 import itertools as it
-from work import *
-from utils import *
+from twcom.work import *
+from twcom.utils import *
 
 
 # 合併不同來源資料庫時，
@@ -80,7 +80,7 @@ def upd_board_target(name, df, grps, cn):
 
 def dup_bossname(comids, nlim=2):
     """save any two fund's duplicate names and count by pair"""
-    print get_funname()
+    print(get_funname())
     cn1 = init(CONFIG['dstdb'])
     #cn1.dupboss.drop()
     #cn1.dupboss.ensure_index([
@@ -115,7 +115,7 @@ def dup_bossname(comids, nlim=2):
         try:
             cn1.dupboss.save(dic1)
         except pymongo.errors.DuplicateKeyError as e:
-            print id1, id2
+            print(id1, id2)
             """"""
         except:
             print_exc()
@@ -133,7 +133,7 @@ def insgrpconn(cn1, name, id1, id2):
             'com1': id1,
             'com2': id2})
     except pymongo.errors.DuplicateKeyError as e:
-        print name, id1, id2
+        print(name, id1, id2)
         """"""
     except:
         print_exc()
@@ -154,7 +154,7 @@ def grouping(items, grps=None):
 
 def run_bossnodes(names):
     """refresh all bossnodes"""
-    print get_funname()
+    print(get_funname())
     if names is None:
         raise Exception(u'empty names')
 
@@ -167,7 +167,7 @@ def run_bossnodes(names):
     step = 10000
     fun = lambda name_chunk: adj_bossnode(name_chunk, cn1)
     map(fun, chunk(names, step))
-    print 'Final'
+    print('Final')
 
 
 def adj_bossnode(names, cn1):
@@ -185,11 +185,11 @@ def adj_bossnode(names, cn1):
     for k, rs in bnodedic.iteritems():
         for r in rs:
             grpdic[k].add(*r['coms'])
-    print len(names), len(bnodedic)
+    print(len(names), len(bnodedic))
 
     for name, items in namedic.iteritems():
         li = []
-        #print name
+        #print(name)
         bnodes = bnodedic.get(name, [])
         #if len(bnodes) > 0:
         #    set_trace()

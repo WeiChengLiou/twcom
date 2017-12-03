@@ -40,14 +40,14 @@ class sparse_mat(object):
     def get_xlike(self, x):
         xs = set()
         for y in self.xdic[x]:
-            for xi in it.ifilter(lambda z: z != x, self.ydic[y]):
+            for xi in filter(lambda z: z != x, self.ydic[y]):
                 xs.add(xi)
         return xs
 
     def get_ylike(self, y):
         ys = set()
         for x in self.ydic[y]:
-            for yi in it.ifilter(lambda z: z != y, self.xdic[x]):
+            for yi in filter(lambda z: z != y, self.xdic[x]):
                 ys.add(yi)
         return ys
 
@@ -56,8 +56,8 @@ class sparse_mat(object):
             return float(len(self.intersec(x1, x2))) /\
                 len(self.xdic[x1].union(self.xdic[x2]))
         except:
-            print x1, self.xdic[x1]
-            print x2, self.xdic[x2]
+            print(x1, self.xdic[x1])
+            print(x2, self.xdic[x2])
             set_trace()
 
     def intersec(self, x1, x2):
@@ -73,7 +73,7 @@ class sparse_mat(object):
         for k in keys:
             ks = set()
             for y in self.xdic[k]:
-                for ki in it.ifilter(lambda z: z > k, self.ydic[y]):
+                for ki in filter(lambda z: z > k, self.ydic[y]):
                     ks.add(ki)
             for k2 in ks:
                 yield (k, k2)
@@ -86,15 +86,15 @@ def test():
            'd': {4, 7}
            }
     obj = sparse_mat.fromdict(dic)
-    # print obj.get_xlike('a')
-    # print obj.get_xlike('c')
-    # print obj.get_ylike(2)
-    # print obj.xdic
-    # print obj.ydic
+    # print(obj.get_xlike('a'))
+    # print(obj.get_xlike('c'))
+    # print(obj.get_ylike(2))
+    # print(obj.xdic)
+    # print(obj.ydic
 
-    # print sorted(obj.nodes)
+    # print(sorted(obj.nodes))
     # for l in obj.links:
-    #     print l, obj.xdic[l[0]], obj.xdic[l[1]], obj.jaccard(*l), len(obj.intersec(*l))
+    #     print(l, obj.xdic[l[0]], obj.xdic[l[1]], obj.jaccard(*l), len(obj.intersec(*l)))
     
 
 if __name__ == '__main__':

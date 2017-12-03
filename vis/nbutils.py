@@ -16,7 +16,7 @@ from twcom import work
 
 
 def rendermd(markdown_str):
-    print 'Deprecated rendermd'
+    print('Deprecated rendermd')
     if hasattr(markdown_str, '__iter__'):
         markdown_str = u''.join(markdown_str)
     return HTML(u"<p>{}</p>".format(markdown(markdown_str)))
@@ -43,7 +43,7 @@ class ListTable(list):
 
 
 def table_attr(s, border=1):
-    print 'Deprecated table_attr'
+    print('Deprecated table_attr')
     return s.replace(u'<table>', u'<table border="{0}">'.format(border))
 
 
@@ -118,7 +118,7 @@ def getcentral(g1):
 
 
 def printdf(s, coldic=None):
-    # print DataFrame with coldic
+    # print(DataFrame with coldic)
     x = ListTable()
     cols = []
     for k in s.columns:
@@ -143,7 +143,7 @@ def drawcom(g, ids=None, **kwargs):
     assert(len(g.node) > 0)
     if ids is None:
         ids = g.node.keys()
-    fids = it.ifilter(lambda x: x in ids, g.nodes())
+    fids = filter(lambda x: x in ids, g.nodes())
     namedic = {k: work.fixname(v) for k, v in
                utils.getnamedic(list(fids)).iteritems()}
     draw(g, namedic, **kwargs)

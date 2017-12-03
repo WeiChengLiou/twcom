@@ -40,6 +40,7 @@ indinfo:
     最近異動日期: chgdate
     現況: status
     組織類型: type
+    出資額(元): equity
 
 branchinfo:
     分公司名稱: name

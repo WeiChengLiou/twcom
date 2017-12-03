@@ -39,18 +39,18 @@ def test(k, url0):
     url = site+url0
     req = requests.get(url)
     try:
-        print req.text[:1000]
+        print(req.text[:1000])
         return json.loads(req.json())
     except:
         print_exc()
-        print req.text
+        print(req.text)
         raise Exception(k, url0)
 
 
 dic = {k: test(k, v) for k, v in urls0.iteritems()}
 urls[0] = urls[0].format(name=choice(dic['board']['boards'])['name'])
 urls[1] = urls[1].format(target=choice(dic['board']['boards'])['target'])
-for i in xrange(2, 5):
+for i in range(2, 5):
     urls[i] = urls[i].format(id=choice(dic['com'].keys()))
 urls[5] = urls[5].format(bossid=choice(dic['boss'])['_id'])
 [test(i, v) for i, v in enumerate(urls)]

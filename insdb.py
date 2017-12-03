@@ -12,7 +12,8 @@ mi.genbadstatus()
 mi.fixing1()
 mi.fixing()
 
-runbd.resetComnetBoss()
-ranks.inscomrank()
+# runbd.resetComnetBoss()
+# ranks.inscomrank()
+
 
 # runbd.test()

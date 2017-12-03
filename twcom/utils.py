@@ -41,18 +41,15 @@ def chk_board(name):
 
 def init(db):
     "init mongodb db class"
-    pwdfi = '../pwd.yaml'
+    pwdfi = 'pwd.yaml'
     if not exists(pwdfi):
-        pwdfi = 'pwd.example.yaml'
+        raise Exception('Missed password file. Make one from pwd.yaml.example')
     dic = yaml.load(open(pwdfi))
     uri = 'mongodb://{user}:{pwd}@{ip}:{port}/{db}'.format(**dic)
     return MongoClient(uri)[db]
 
 
-if exists('config.yaml.bak'):
-    CONFIG = yaml.load(open('config.yaml.bak'))
-else:
-    CONFIG = yaml.load(open('config.yaml'))
+CONFIG = yaml.load(open('config.yaml'))
 db = init(CONFIG['db'])
 
 
@@ -86,7 +83,7 @@ def getid(name):
         if len(ret['id']) == 1:
             return ret['id'][0]
         else:
-            print u'Warnning: duplicte id - {0}'.format(name)
+            print(u'Warnning: duplicte id - {0}'.format(name))
             return ret['id'][0]
     else:
         return name

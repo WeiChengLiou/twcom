@@ -109,7 +109,7 @@ def filledge_com(g):
         for dst, v in vsrc.iteritems():
             key = (src, dst)
             v['weight'] = dic.get(key, 1)
-            # print key, v['weight']
+            # print(key, v['weight'])
 
 
 def iters(arg1, arg2):
@@ -178,7 +178,7 @@ def draw_scatter(g, sizefun=None, lblfun=None):
     if sizefun:
         s = map(sizefun, g.node.values())
     else:
-        s = [10 for _ in xrange(len(g.node))]
+        s = [10 for _ in range(len(g.node))]
 
     deg = nx.degree(g)
     x = [deg[k] for k in g.node]

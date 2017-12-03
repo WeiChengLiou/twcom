@@ -91,7 +91,7 @@ class ComNetwork(restful.Resource):
                 maxlvl=maxlvl,
                 lnunit=lnunit)
         else:
-            print args
+            print(args)
             raise Exception('Unknown parameter')
 
         return json.jsonify(query.exp_company(G))
@@ -118,7 +118,7 @@ class Query(restful.Resource):
                 args.get('board'),
                 ind=True)
         else:
-            print args
+            print(args)
             raise Exception('Unknown parameter')
 
         return json.jsonify(dic)

@@ -17,13 +17,13 @@ g = nx.random_graphs.erdos_renyi_graph(1000, 0.1)
 
 if __name__ == '__main__':
     import timeit
-    print timeit.timeit(
+    print(timeit.timeit(
         "nx.closeness_centrality(g)",
         setup="from __main__ import nx, g",
         number=3,
-        )
-    print timeit.timeit(
+        ))
+    print(timeit.timeit(
         "cn.closeness_centrality_parallel(g)",
         setup="from __main__ import cn, g",
         number=3,
-        )
+        ))

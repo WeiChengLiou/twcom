@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from bson.objectid import ObjectId
-from utils import db, init, logger, getnamedic, chk_board
-from work import show, getitem, deprecated, getdf, fixname
-from work import flatten
+from twcom.utils import db, init, logger, getnamedic, chk_board
+from twcom.work import show, getitem, deprecated, getdf, fixname
+from twcom.work import flatten
 import numpy as np
 import itertools as it
 import networkx as nx
@@ -31,7 +31,7 @@ def get_boss_network(**kwargs):
 
     def list_boss(boards):
         try:
-            return list(it.ifilter(lambda r: r.get('target'), boards))
+            return list(filter(lambda r: r.get('target'), boards))
         except:
             show(boards)
             print_exc()
@@ -95,7 +95,7 @@ def get_boss_network(**kwargs):
 
     G, coms, newlvl = reduce(
         lambda x, y: subgraph(*x),
-        xrange(maxlvl + 1),
+        range(maxlvl + 1),
         (G, coms, 0))
     return G
 
@@ -146,7 +146,7 @@ def get_network(ids, maxlvl=1, **kwargs):
                        {'dst': {'$in': ids}}]
         ret = db.ComBosslink.find(cond, {'_id': 0})
 
-        for r in it.ifilter(lambda r: not G.has_edge(r['src'], r['dst']),
+        for r in filter(lambda r: not G.has_edge(r['src'], r['dst']),
                             ret):
             if r['src'] not in items:
                 items[r['src']] = newlvl
@@ -156,12 +156,12 @@ def get_network(ids, maxlvl=1, **kwargs):
             r['width'] = r.get(lnunit, 1)
             G.add_edge(r.pop('src'), r.pop('dst'), r)
 
-        ids1 = [key1 for key1, lvl1 in it.ifilter(
+        ids1 = [key1 for key1, lvl1 in filter(
                 lambda x: lvl == x[1], items.iteritems())]
         return G, ids1, newlvl
 
     G, ids, lvl = reduce(lambda x, y: subgraph(*x),
-                         xrange(maxlvl), (G, ids, 0))
+                         range(maxlvl), (G, ids, 0))
     return G
 
 
@@ -213,7 +213,7 @@ def get_boss(id, ind=False):
 
     ret = db.cominfo.find({'id': id}, {'_id': 0, 'name': 1, 'boards': 1})
     for r in ret:
-        r['boards'] = list(it.ifilter(
+        r['boards'] = list(filter(
             lambda b: all(map(lambda f: f(b), bconds)),
             r['boards']))
         [r1.__setitem__('target', str(r1['target'])) for r1 in r['boards']]
@@ -251,7 +251,7 @@ def getcomboss(ids):
 
     ret = db.cominfo.find({'id': {'$in': ids}})
     for r in ret:
-        for boss in it.ifilter(lambda boss: boss.get('target'),
+        for boss in filter(lambda boss: boss.get('target'),
                                r['boards']):
             yield boss['target']
 
@@ -306,7 +306,7 @@ def setedge_width(G, fun):
     for x in G.edges():
         y = G.get_edge_data(*x)
         if y.get('width'):
-            # print y['width'], fun(y['width'])
+            # print(y['width'], fun(y['width']))
             y['width'] = fun(y['width'])
 
 
@@ -374,7 +374,7 @@ def exp_company(G, **kwargs):
     #     setnode(G, 'group', output)
     [v.setdefault('group', 0) for k, v in G.node.iteritems()]
 
-    # print keargs.get('lineunit')
+    # print(keargs.get('lineunit'))
     # if kwargs.get('lineunit') == 'seatratio':
     #     setedge_width(G, lambda x: float(x)/10.)
 
@@ -392,7 +392,7 @@ def showkv(id, name, info=None):
     else:
         coldic = [('id', u'統一編號'), ('name', u'公司名稱'),
                   ('status', u'公司狀況'), ('eqtstate', u'股權狀況')]
-        for col, colname in it.ifilter(lambda col: col in info,
+        for col, colname in filter(lambda col: col in info,
                                        coldic):
             s1.append(u'%s: %s' % (colname, unicode(info[col])))
 
@@ -449,7 +449,7 @@ def fill_boss_node(G, targets):
 
 def getli(k, x):
     if 'orgs' not in x:
-        print 'Err:', k, x
+        print('Err:', k, x)
         raise Exception()
     return x['orgs']
 
@@ -589,7 +589,7 @@ def getComNet(ids, maxlvl=1, **kwargs):
                        {'dst': {'$in': ids}}]
         ret = db.comivst.find(cond, {'_id': 0, 'death': 0})
 
-        for r in it.ifilter(lambda r: not G.has_edge(r['src'], r['dst']),
+        for r in filter(lambda r: not G.has_edge(r['src'], r['dst']),
                             ret):
             if r['src'] not in items:
                 items[r['src']] = newlvl
@@ -599,12 +599,12 @@ def getComNet(ids, maxlvl=1, **kwargs):
             r['width'] = 1
             G.add_edge(r.pop('src'), r.pop('dst'), r)
 
-        ids1 = [key1 for key1, lvl1 in it.ifilter(
+        ids1 = [key1 for key1, lvl1 in filter(
                 lambda x: lvl == x[1], items.iteritems())]
         return G, ids1, newlvl
 
     G, ids, lvl = reduce(lambda x, y: subgraph(*x),
-                         xrange(maxlvl), (G, ids, 0))
+                         range(maxlvl), (G, ids, 0))
     return G
 
 
