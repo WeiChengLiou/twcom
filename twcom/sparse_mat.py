@@ -3,14 +3,13 @@
 
 from pdb import set_trace
 from collections import defaultdict
-import itertools as it
 
 
 class sparse_mat(object):
     @classmethod
     def fromdict(cls, dic):
         obj = sparse_mat()
-        for k, v in dic.iteritems():
+        for k, v in dic.items():
             obj.add(k, v)
         return obj
 
@@ -80,22 +79,26 @@ class sparse_mat(object):
 
 
 def test():
+    def sethash(x):
+        return hash('/'.join(sorted(map(str, x))))
+
     dic = {'a': [1, 2, 3],
-           'b': {2, 3, 4},
+           'b': {2, 3, 5},
            'c': {5, 6, 7},
            'd': {4, 7}
            }
     obj = sparse_mat.fromdict(dic)
-    # print(obj.get_xlike('a'))
-    # print(obj.get_xlike('c'))
-    # print(obj.get_ylike(2))
-    # print(obj.xdic)
-    # print(obj.ydic
+    assert sethash(obj.get_xlike('a')) == sethash({'b'})
+    assert sethash(obj.get_xlike('c')) == sethash({'b', 'd'})
+    assert sethash(obj.get_ylike(2)) == sethash({1, 3, 5})
+    print(obj.xdic)
+    print(obj.ydic)
 
-    # print(sorted(obj.nodes))
-    # for l in obj.links:
-    #     print(l, obj.xdic[l[0]], obj.xdic[l[1]], obj.jaccard(*l), len(obj.intersec(*l)))
-    
+    print(sorted(obj.nodes))
+    for l in obj.links:
+        print(l, obj.xdic[l[0]], obj.xdic[l[1]], obj.jaccard(*l),
+              len(obj.intersec(*l)))
+
 
 if __name__ == '__main__':
     test()
