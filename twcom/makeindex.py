@@ -66,22 +66,22 @@ class ComItem(object):
         self.id = kv.pop('id')
 
 #         fkeys = (
-#             u'在中華民國境內營運資金',
-#             u'在台灣地區營業所用',
+#             '在中華民國境內營運資金',
+#             '在台灣地區營業所用',
 #         )
 
         # 初次對 json 分類為不同類別
-        if u'組織類型' in kv:
+        if '組織類型' in kv:
             self.tbl = 'indinfo'
             self.read(kv, 'indinfo')
-        elif ((u'分公司名稱' in kv) and (u'公司名稱' in kv)) or\
-                (u'核准認許日期' in kv):
+        elif (('分公司名稱' in kv) and ('公司名稱' in kv)) or\
+                ('核准認許日期' in kv):
             self.tbl = 'fbranchinfo'
             self.read(kv, 'fbranchinfo')
-        elif u'辦事處所在地' in kv:
+        elif '辦事處所在地' in kv:
             self.tbl = 'fagentinfo'
             self.read(kv, 'fagentinfo')
-        elif u'分公司名稱' in kv:
+        elif '分公司名稱' in kv:
             self.tbl = 'branchinfo'
             self.read(kv, 'branchinfo')
         else:
@@ -97,7 +97,7 @@ class ComItem(object):
                 # 遇到異常欄位就要先註記再即時 debug
                 if k not in errcol.keys():
                     # 列出異常欄位名稱與公司統編
-                    print(u'Unknown Column:', self.id, self.tbl, k)
+                    print('Unknown Column:', self.id, self.tbl, k)
                     errcol[k] = (self.id, v)
                 if not errid.get(self.id):
                     errid[self.id] = (self.id, kv)
@@ -125,12 +125,12 @@ class ComItem(object):
             return
         elif key == 'boards':
             for boss in v:
-                boss[u'職稱'] = replaces(
-                    boss[u'職稱'], ('\r\n', ' ', 'null', '\t'))
+                boss['職稱'] = replaces(
+                    boss['職稱'], ('\r\n', ' ', 'null', '\t'))
                 try:
-                    boss[u'出資額'] = int(replaces(boss[u'出資額'], (',',)))
+                    boss['出資額'] = int(replaces(boss['出資額'], (',',)))
                 except:
-                    boss[u'出資額'] = 0
+                    boss['出資額'] = 0
         elif 'date' in key and v:
             v = datetime(v['year'], v['month'], v['day'])
         elif key in ('capital', 'realcap'):
@@ -143,7 +143,7 @@ class ComItem(object):
                 print_exc()
                 set_trace()
         elif key == 'status':
-            v = replaces(v, (u' ', u'　', 'null'))
+            v = replaces(v, (' ', '　', 'null'))
         elif key == 'equity':
             for boss in v:
                 v[boss] = int(v[boss])
@@ -186,7 +186,7 @@ class ComItem(object):
         for boss in self.boards:
             vs = {}
             for col, v in boss.items():
-                if col == u'所代表法人':
+                if col == '所代表法人':
                     if isinstance(v, list):
                         vs['repr_inst'] = str(v[1])
                         vs['repr_instid'] = str(v[0])
@@ -226,7 +226,7 @@ class ComItem(object):
             vs = {'id': self.id,
                   'source': 'twcom'}
             for col, v in boss.items():
-                if col == u'所代表法人':
+                if col == '所代表法人':
                     if isinstance(v, list):
                         vs['repr_inst'] = str(v[1])
                         vs['repr_instid'] = str(v[0])
@@ -244,7 +244,7 @@ class ComItem(object):
             if kvs in sets:
                 # 另外紀錄董監事名單裡重複的名字
                 with open('boards_dbl.csv', 'a') as f:
-                    f.write(u','.join(kvs) + '\n')
+                    f.write(','.join(kvs) + '\n')
                 continue
             else:
                 sets.add(kvs)
@@ -340,10 +340,10 @@ def genbadstatus():
     # return bad company status
     status = set()
     status.update(db.cominfo.find(
-        {'status': {'$not': re.compile(u'核准')}}).distinct('status'))
+        {'status': {'$not': re.compile('核准')}}).distinct('status'))
     status.update(db.cominfo.find(
-        {'$or': [{'status': {'$regex': u'停業'}},
-         {'status': {'$regex': u'解散'}}]}).distinct('status'))
+        {'$or': [{'status': {'$regex': '停業'}},
+         {'status': {'$regex': '解散'}}]}).distinct('status'))
     ysave(sorted(status), 'doc/badstatus.yaml')
 
 
@@ -385,10 +385,10 @@ def defnation():
     nations = set()
     tbls = ('fbranchinfo', 'fagentinfo')
     for r in db.cominfo.find({'type': {'$in': tbls},
-                              'name': {'$regex': u'商'}},
+                              'name': {'$regex': '商'}},
                              ['name']):
         name = r['name']
-        i = name.index(u'商')
+        i = name.index('商')
         nations.add(name[:(i+1)])
     nations = list(nations)
     print(len(nations))
@@ -513,8 +513,8 @@ def fill_hideboss(chkdic):
         for name in names:
             dic = {'id': id,
                    'name': name,
-                   'title': u'法人代表',
-                   'repr_inst': u'',
+                   'title': '法人代表',
+                   'repr_inst': '',
                    'repr_instid': '0',
                    'target': id,
                    'equity': 0}
@@ -655,8 +655,8 @@ def fixboard(names):
                 else:
                     # 相同公司名稱有兩間以上，不處理
                     logger.warning(
-                        u'Duplicate name: {0} {1} -> {2}'.format(
-                            id, name, u' '.join(ids)))
+                        'Duplicate name: {0} {1} -> {2}'.format(
+                            id, name, ' '.join(ids)))
         except:
             print_exc()
             set_trace()
@@ -705,8 +705,8 @@ def fixboard1(names):
                 else:
                     # 相同公司名稱有兩間以上，不處理
                     logger.warning(
-                        u'Duplicate name: {0} {1} -> {2}'.format(
-                            id, name, u' '.join(ids)))
+                        'Duplicate name: {0} {1} -> {2}'.format(
+                            id, name, ' '.join(ids)))
         if chg == 1:
             li[r['id']] = r
 
@@ -806,7 +806,7 @@ def defnamedic():
             iddic[name] = []
 
     dic1 = {'type': {'$in': ['baseinfo', 'fbranchinfo', 'fagentinfo']},
-            'status': {'$regex': u'核准'}}
+            'status': {'$regex': '核准'}}
     coldic = {'name': 1, 'id': 1, 'status': 1, 'name1': 1}
 
     for r in db.cominfo.find(dic1, coldic):
@@ -823,5 +823,5 @@ def defnamedic():
 
 if __name__ == '__main__':
     """"""
-    ids = [u'75370905', u'16095002', u'73251209', u'75370601']
+    ids = ['75370905', '16095002', '73251209', '75370601']
     # refresh()

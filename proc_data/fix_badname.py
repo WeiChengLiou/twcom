@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
-import itertools as it
+from functools import reduce
 import numpy as np
 import re
 import pandas as pd
@@ -53,7 +53,7 @@ def grp_unify(df):
     cnt = df.groupby(level=lvls).count()
     cnt = cnt[cnt > 1]
     if len(cnt) > 0:
-        df1 = df.ix[cnt.index].copy().to_frame()
+        df1 = df.loc[cnt.index].copy().to_frame()
         df2 = df1.groupby(level=lvls)[col].min().rename(colfix)
         df3 = df1.reset_index().merge(df2.reset_index()).drop_duplicates()
         return df3
@@ -67,15 +67,15 @@ def grp_unify(df):
 # Construct (id, name) pair dictionary
 fixwords = yload('doc/fixword.yaml')
 bads = yload('doc/badstatus.yaml')
-namecol = [u'公司名稱']
+namecol = ['公司名稱']
 id_name = []
 
 ret = db.raw.find(
     {},
     {'_id': 0, 'id': 1,
-     u'公司名稱': 1,
-     u'公司狀況': 1,
-     u'公司狀況文號': 1,
+     '公司名稱': 1,
+     '公司狀況': 1,
+     '公司狀況文號': 1,
      }
 )
 
@@ -86,7 +86,7 @@ def fun(id_name, key, name):
     def f_fixword(x, ys):
         return x.replace(ys[0], ys[1])
 
-    name1 = reduce(f_fixword, fixwords, name).strip()
+    name1 = reduce(f_fixword, fixwords.items(), name).strip()
 
     if name1 and (not name1.isdigit()) and (len(name1) > 3):
         id_name.append(key + (name1,))
@@ -100,19 +100,19 @@ for r in ret:
     if not name:
         continue
 
-    word = r.get(u'公司狀況文號', None)
-    status = r[u'公司狀況']
+    word = r.get('公司狀況文號', None)
+    status = r['公司狀況']
     id = r['id']
     key = (id, status, word)
 
     if isinstance(name, list):
         for x in name:
-            if isinstance(x, basestring):
+            if isinstance(x, str):
                 fun(id_name, key, x)
             else:
                 for x1 in x:
                     fun(id_name, key, x1)
-    elif isinstance(name, basestring):
+    elif isinstance(name, str):
         fun(id_name, key, name)
 
 
@@ -128,26 +128,26 @@ id_name = id_name.drop_duplicates()
 df1 = id_name[~id_name.status.isin(bads)]
 s = chkdist(df1['name'])
 skips = [
-    u'（同名）',
-    u'（無統蝙）',
-    u'（無統編）',
-    u'（股份有限公司）',
-    u'（因偽造文書撤銷公司設立登記）',
-    u'（父子）',
-    u'（新增統編）',
-    u'(在臺灣地區公司名稱)',
-    u'(在大陸地區公司名稱)',
-    u'株式會社',
-    u'■■■■■',
-    u'有限會社',
-    u'(在台灣地區公司名稱)',
-    u'株式會社',
-    u'株式会社',
-    u'有限公司',
-    u'(株)',
+    '（同名）',
+    '（無統蝙）',
+    '（無統編）',
+    '（股份有限公司）',
+    '（因偽造文書撤銷公司設立登記）',
+    '（父子）',
+    '（新增統編）',
+    '(在臺灣地區公司名稱)',
+    '(在大陸地區公司名稱)',
+    '株式會社',
+    '■■■■■',
+    '有限會社',
+    '(在台灣地區公司名稱)',
+    '株式會社',
+    '株式会社',
+    '有限公司',
+    '(株)',
 ]
 
-rx = re.compile(u'商$', re.UNICODE)
+rx = re.compile('商$', re.UNICODE)
 ret = s[
     (s['name'].apply(lambda x: rx.search(x) is not None)) &
     (s['len'] < 10)
@@ -167,7 +167,7 @@ id_name = id_name[~id_name['name'].isin(skips)]
 # Study bad company name
 def study_badname():
     li = []
-    rx = re.compile(u'([\(（].*?[\)）])', re.UNICODE)
+    rx = re.compile('([\(（].*?[\)）])', re.UNICODE)
 
     for i, r in id_name.iterrows():
         for x in rx.findall(r['name']):
@@ -183,16 +183,16 @@ def study_badname():
 ##
 # Get board full list
 ret = db.raw.find(
-    {u'董監事名單': {'$exists': 1}},
-    {'_id': 0, u'董監事名單': 1, 'id': 1}
+    {'董監事名單': {'$exists': 1}},
+    {'_id': 0, '董監事名單': 1, 'id': 1}
 )
 boards = []
 li = set()
 for r in ret:
-    for dic in r[u'董監事名單']:
+    for dic in r['董監事名單']:
         dic['id'] = r['id']
-        dic[u'職稱'] = replaces(dic[u'職稱'], ['\r', '\n', '\t']).strip()
-        key = dic['id'], dic[u'姓名'], dic[u'序號']
+        dic['職稱'] = replaces(dic['職稱'], ['\r', '\n', '\t']).strip()
+        key = dic['id'], dic['姓名'], dic['序號']
         if key not in li:
             boards.append(dic)
             li.add(key)
@@ -202,19 +202,18 @@ boards = pd.DataFrame(boards)
 ##
 # Fix inst id/name
 inst = (
-    boards[boards[u'所代表法人'] != ""][u'所代表法人']
+    boards[boards['所代表法人'] != ""]['所代表法人']
     .to_frame()
 )
-inst['instid'], inst['inst'] = zip(*inst[u'所代表法人'].tolist())
+inst['instid'], inst['inst'] = zip(*inst['所代表法人'].tolist())
 boards = boards.join(inst[['instid', 'inst']])
 
 # Check non exists instid
 ids = inst['instid'].drop_duplicates()
 id2 = ids[~ids.isin(id_name['id'])]
 id2 = id2[id2 != 0]
-names = inst.ix[id2.index, 'inst'].apply(
-    lambda x: x.replace(u'股份有限公司', u''))
-rx = re.compile(u'|'.join(names), re.UNICODE)
+names = inst.loc[id2.index, 'inst'].apply(lambda x: x.replace('股份有限公司', ''))
+rx = re.compile('|'.join(names), re.UNICODE)
 df_noid = id_name[id_name.name.apply(lambda x: rx.search(x) is not None)]
 
 if len(df_noid) > 0:
@@ -229,7 +228,7 @@ rename_dic = {}
 df2 = inst[~inst['inst'].apply(chk_board)].inst.drop_duplicates()
 for x in df2:
     if x not in fixdic:
-        rename_dic[x] = u''
+        rename_dic[x] = ''
 fixdic.update(rename_dic)
 
 fixdic = (
@@ -252,17 +251,17 @@ boards = update(
     'inst',
     'fix'
 )
-boards.ix[boards['inst'] == u'', 'inst'] = np.nan
+boards.loc[boards['inst'] == '', 'inst'] = np.nan
 
 
 ##
 # Remove bad board name
-ret = boards[~boards[u'姓名'].apply(chk_board)]
-boards.ix[ret.index, u'姓名'] = u''
+ret = boards[~boards['姓名'].apply(chk_board)]
+boards.loc[ret.index, '姓名'] = ''
 
 
 # Remove instid which remove inst too
-boards.ix[
+boards.loc[
     boards['inst'].isnull() &
     (boards['instid'] == 0),
     'instid'] = np.nan
@@ -287,7 +286,7 @@ boards = update(
 # Find inst with empty instid
 ret = boards[
     (boards['inst'].notnull()) &
-    (boards['inst'] != u'')
+    (boards['inst'] != '')
 ]
 
 ret = ret[ret['instid'].isnull()]
@@ -315,7 +314,7 @@ def parse_name(name):
     qry = rx1.search(name)
     if qry:
         li.extend(qry.groups())
-        name = name.replace(li[-1], u'').replace(u'()', u'')
+        name = name.replace(li[-1], '').replace('()', '')
 
     li.extend(name.split(','))
     li = [x.strip() for x in li]
@@ -325,17 +324,17 @@ def parse_name(name):
 ##
 # Add resposible person
 namecol = (
-    (u'代表人姓名', u'代表人'),
-    (u'負責人姓名', u'負責人'),
-    (u'訴訟及非訴訟代理人姓名', u'訴訟及非訴訟代理人'),
+    ('代表人姓名', '代表人'),
+    ('負責人姓名', '負責人'),
+    ('訴訟及非訴訟代理人姓名', '訴訟及非訴訟代理人'),
 )
 titles = [x[1] for x in namecol]
-boards = boards[~boards[u'職稱'].isin(titles)]
+boards = boards[~boards['職稱'].isin(titles)]
 
 for c, title in namecol:
     print(c)
     ret = db.raw.find(
-        {c: {'$exists': 1, '$ne': u''}},
+        {c: {'$exists': 1, '$ne': ''}},
         {'_id': 0, 'id': 1, c: 1}
     )
     li = pd.DataFrame(list(ret))
@@ -355,7 +354,7 @@ for c, title in namecol:
             pd.concat(
                 [x0[0], x0[1]]
             )
-            .rename(u'姓名')
+            .rename('姓名')
             .reset_index()
             .drop_duplicates()
         )
@@ -364,23 +363,23 @@ for c, title in namecol:
         li
         [~li['list']]
         .rename(columns={
-            c: u'姓名',
+            c: '姓名',
         })
         .drop('list', axis=1)
     )
 
     li = pd.concat([x0, x1])
-    li[u'職稱'] = title
-    li = li[li[u'姓名'].apply(chk_board)]
+    li['職稱'] = title
+    li = li[li['姓名'].apply(chk_board)]
 
     # Special case in name
-    s = li[li[u'姓名'].apply(
-        lambda x: (re.search(u'[,\(\)]', x) is not None)
+    s = li[li['姓名'].apply(
+        lambda x: (re.search('[,\(\)]', x) is not None)
     )]
     if len(s) > 0:
         s1 = (
             s.set_index('id')
-            [u'姓名']
+            ['姓名']
             .apply(parse_name)
         )
         s1 = (
@@ -389,7 +388,7 @@ for c, title in namecol:
                 index=s1.index
             )
             .stack()
-            .rename(u'姓名')
+            .rename('姓名')
         )
         s1.index = s1.index.droplevel(1)
         s1 = (
@@ -397,7 +396,7 @@ for c, title in namecol:
             .reset_index()
             .drop_duplicates()
         )
-        s1[u'職稱'] = li.iloc[0][u'職稱']
+        s1['職稱'] = li.iloc[0]['職稱']
 
         li = pd.concat([li, s1]).drop_duplicates()
 
@@ -405,14 +404,14 @@ for c, title in namecol:
         li
         .merge(
             boards
-            [['id', u'姓名']]
+            [['id', '姓名']]
             .assign(flag=1),
             how='left'
         )
     )
     ret = ret[
         (ret['flag'].isnull()) &
-        (ret[u'姓名'].apply(chk_board))
+        (ret['姓名'].apply(chk_board))
     ]
     ret = ret.drop('flag', axis=1)
 
@@ -437,12 +436,12 @@ boards = update(boards, ret, 'instid', 'fix')
 ##
 # Build up inst representatives list
 ret = (
-    boards.ix[boards['inst'].notnull(), ['instid', u'姓名']]
+    boards.loc[boards['inst'].notnull(), ['instid', '姓名']]
     .drop_duplicates()
     .rename(columns={'instid': 'id'})
     .merge(
         boards
-        [['id', u'姓名']]
+        [['id', '姓名']]
         .drop_duplicates()
         .assign(flag=1),
         how='left'
@@ -469,12 +468,12 @@ ret_idname['source'] = 'org'
 id_name = pd.concat([id_name, ret_idname])
 
 ret_boards = ret.drop_duplicates()
-ret_boards[u'職稱'] = u'法人代表'
+ret_boards['職稱'] = '法人代表'
 boards = pd.concat([boards, ret_boards])
 
 
 ##
-# Brute force same company by name
+# Brute force find same company by name
 id_name['keyno'] = id_name['id']
 cnt = 0
 while 1:
@@ -521,18 +520,18 @@ id_name = id_name.drop(idmap.index)
 # Fix inst as board name
 com_name = (
     id_name['name']
-    .rename(u'姓名')
+    .rename('姓名')
     .drop_duplicates()
     .to_frame()
 )
 ret = boards.merge(com_name)
 ret = (
     ret[ret['instid'].isnull()]
-    [['id', u'姓名']]
+    [['id', '姓名']]
 )
 ret1 = (
     id_name
-    [id_name['name'].isin(ret[u'姓名'])]
+    [id_name['name'].isin(ret['姓名'])]
     .groupby('name')
     .keyno
     .first()
@@ -542,32 +541,32 @@ ret1 = (
         'keyno': 'instid'
     })
 )
-ret1[u'姓名'] = ret1['inst']
+ret1['姓名'] = ret1['inst']
 ret = ret.merge(ret1)
 if len(ret) > 0:
-    boards.set_index(['id', u'姓名'])
-    ret.set_index((['id', u'姓名']))
+    boards.set_index(['id', '姓名'])
+    ret.set_index((['id', '姓名']))
     boards.update(ret)
     boards.reset_index()
 
 
 ##
 # Clean up boards
-skip_rolls = (u'代表人', u'負責人', u'訴訟及非訴訟代理人')
-ret = boards[(~boards[u'職稱'].isin(skip_rolls))]
+skip_rolls = ('代表人', '負責人', '訴訟及非訴訟代理人')
+ret = boards[(~boards['職稱'].isin(skip_rolls))]
 cnt = (
-    ret[ret[u'姓名'] != u'']
-    .groupby(['id', u'姓名'])
-    [u'序號'].count()
+    ret[ret['姓名'] != '']
+    .groupby(['id', '姓名'])
+    ['序號'].count()
     .rename('cnt')
 )
 cnt = cnt[cnt > 1].reset_index().drop('cnt', axis=1)
-df2 = ret.merge(cnt).groupby(['id', u'姓名']).first().reset_index()
+df2 = ret.merge(cnt).groupby(['id', '姓名']).first().reset_index()
 ret = ret.merge(cnt, how='left', indicator=True)
 ret = pd.concat([
     ret[ret['_merge'] == 'left_only'].drop('_merge', axis=1),
     df2
-]).sort_values(['id', u'序號'])
+]).sort_values(['id', '序號'])
 boards = ret
 
 

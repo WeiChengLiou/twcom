@@ -53,23 +53,27 @@ CONFIG = yaml.load(open('config.yaml'))
 db = init(CONFIG['db'])
 
 
-def getname(id):
+def getname(id, cn=None):
     # get company name by id
     # if not found, return id
-    ret = db.cominfo.find_one({'id': id}, ['name'])
+    if not cn:
+        cn = db.cominfo
+    ret = cn.find_one({'id': id}, ['name'])
     if ret:
         return ret['name']
     else:
         return id
 
 
-def getnamedic(ids):
+def getnamedic(ids, cn=None):
     # get company name by multiple ids
     # if not found, return id
     # return dictionary(id, name)
+    if not cn:
+        cn = db.cominfo
     if not hasattr(ids, '__iter__'):
         ids = (ids,)
-    ret = db.cominfo.find({'id': {'$in': ids}}, ['id', 'name'])
+    ret = cn.find({'id': {'$in': ids}}, ['id', 'name'])
     dic = {id: id for id in ids}
     for r in ret:
         dic[r['id']] = r['name']
@@ -89,10 +93,12 @@ def getid(name):
         return name
 
 
-def getbadcoms():
+def getbadcoms(cn=None):
+    if not cn:
+        cn = db.cominfo
     bads = yload('doc/badstatus.yaml')
     cond = {'status': {'$in': list(bads)}}
-    return set([r['id'] for r in db.cominfo.find(cond)])
+    return set([r['id'] for r in cn.find(cond)])
 
 
 def insitem(db, coll, item):

@@ -5,10 +5,8 @@ import numpy as np
 import pandas as pd
 from twcom.utils import db
 from twcom.work import getdf
-from matplotlib import pylab as plt
 import seaborn as sns
 sns.set_context('poster')
-plt.ion()
 pd.__version__
 
 
@@ -46,6 +44,8 @@ ret = (
     .to_csv('doc/ivst_rank.csv', encoding='utf8',
             sep='\t', index=False)
 )
+
+
 ##
 # Create Company link
 coll = db.boards1
@@ -82,6 +82,7 @@ ret = (
     .merge(iddic[['id', 'name']]
            .rename(columns={'id': 'dst', 'name': 'dst_name'}))
 )
+
 
 ##
 coll = db.ComLink1

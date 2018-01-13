@@ -58,8 +58,8 @@ def upd_link(df0, links):
     )
 
     df4 = df0.merge(df3, how='left', indicator=True)
-    df4.ix[df4._merge == 'both', 'ref'] = \
-        df4.ix[df4._merge == 'both', 'reffix']
+    df4.loc[df4._merge == 'both', 'ref'] = \
+        df4.loc[df4._merge == 'both', 'reffix']
     df4 = (
         df4.drop('no', axis=1)
         .drop('_merge', axis=1)
