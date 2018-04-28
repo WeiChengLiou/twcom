@@ -85,7 +85,7 @@ ret = (
 
 
 ##
-coll = db.ComLink1
+coll = db.comLink1
 coll.drop()
 coll.insert_many(ret.to_dict('record'))
 print('%s inserted %s items' % (coll.name, coll.count()))

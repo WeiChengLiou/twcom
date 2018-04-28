@@ -77,7 +77,7 @@ df0 = (boards[['id', u'姓名', 'ref']])
 
 ##
 # link by company link
-links = getdf(db.ComLink1.find({}, {'src': 1, 'dst': 1, '_id': 0}))
+links = getdf(db.comLink1.find({}, {'src': 1, 'dst': 1, '_id': 0}))
 df0 = upd_link(df0, links)
 print(df0.shape)
 
