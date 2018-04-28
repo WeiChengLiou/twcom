@@ -205,23 +205,42 @@ boards['職稱'] = (
 
 ##
 # Fix inst id/name
+x0 = boards.loc[boards['所代表法人'] != "", '所代表法人']
 inst = (
-    boards[boards['所代表法人'] != ""]['所代表法人']
-    .to_frame()
+    x0.astype(str)
+    .str.extract('\[\'?(?P<instid>\d+)\'?, \'?(?P<inst>.*)\'?\]', expand=True)
 )
-inst['instid'], inst['inst'] = zip(*inst['所代表法人'].tolist())
+inst['inst'] = inst['inst'].str.replace("'", '')
+inst['instid'] = inst['instid'].str.replace('00000000', '0')
 boards = boards.join(inst[['instid', 'inst']])
 
-# Check non exists instid
-ids = inst['instid'].drop_duplicates()
-id2 = ids[~ids.isin(id_name['id'])]
-id2 = id2[id2 != 0]
-names = inst.loc[id2.index, 'inst'].apply(lambda x: x.replace('股份有限公司', ''))
-rx = re.compile('|'.join(names), re.UNICODE)
-df_noid = id_name[id_name.name.apply(lambda x: rx.search(x) is not None)]
+##
+# Check non-exists instid
+df_noid = (
+    inst
+    .loc[inst.instid != '0']
+    .rename(columns={'instid': 'id'})
+    .merge(id_name[['id', 'name']], how='left')
+    .pipe(lambda x1: x1.loc[x1['name'].isnull()])
+    .drop('name', axis=1)
+    .rename(columns={'id': 'instid'})
+)
+df_noid['inst'] = (
+    df_noid['inst']
+    .str.replace('(股份|有限|公司)', '')
+)
+df_noid = df_noid.merge(
+    id_name
+    .name.str.replace('(股份|有限|公司)', '')
+    .rename('inst')
+    .to_frame()
+    .assign(c=1),
+    how='left'
+).drop('c', axis=1)
 
-if len(df_noid) > 0:
-    raise Exception('Get exists name but unknown id', df_noid)
+if df_noid.c.isnull().sum() > 0:
+    print('WARNING: Get unknown instid with unknown inst names')
+    print(df_noid)
 
 
 ##
@@ -264,10 +283,10 @@ ret = boards[~boards['姓名'].apply(chk_board)]
 boards.loc[ret.index, '姓名'] = ''
 
 
-# Remove instid which remove inst too
+# Remove instid whose inst has been removed
 boards.loc[
     boards['inst'].isnull() &
-    (boards['instid'] == 0),
+    (boards['instid'] == '0'),
     'instid'] = np.nan
 
 ##
@@ -288,11 +307,7 @@ boards = update(
 
 ##
 # Find inst with empty instid
-ret = boards[
-    (boards['inst'].notnull()) &
-    (boards['inst'] != '')
-]
-
+ret = boards[boards['inst'].notnull()]
 ret = ret[ret['instid'].isnull()]
 assert len(ret) == 0
 
@@ -300,14 +315,11 @@ assert len(ret) == 0
 ##
 # Parse special name
 def parse_name(name):
+    # DO NOT parse English name to reduce subsequent name-match error
     def len_filter(s):
-        qry = re.search('[\w\d\-\.\(\)\,]+', s)
+        qry = re.search('[a-zA-Z\d\-\.\(\)\,]+', s)
         if qry:
-            if (qry.group() == s):
-                if (len(s) < 5):
-                    return False
-            else:
-                return False
+            return False
         else:
             if len(s) < 2:
                 return False
@@ -322,7 +334,7 @@ def parse_name(name):
 
     li.extend(name.split(','))
     li = [x.strip() for x in li]
-    return list(filter(len_filter, li))
+    return set(filter(len_filter, li))
 
 
 ##
@@ -333,6 +345,9 @@ namecol = (
     ('訴訟及非訴訟代理人姓名', '訴訟及非訴訟代理人'),
 )
 titles = [x[1] for x in namecol]
+
+# Raw data don't have these titles in 董監事名單.
+# But we drop data by these title when we have to re-run this block.
 boards = boards[~boards['職稱'].isin(titles)]
 
 for c, title in namecol:
@@ -382,42 +397,34 @@ for c, title in namecol:
     )]
     if len(s) > 0:
         s1 = (
-            s.set_index('id')
+            s
+            .groupby(['姓名'])
             ['姓名']
-            .apply(parse_name)
+            .apply(lambda x: parse_name(x.values[0]))
         )
-        s1 = (
-            pd.DataFrame(
-                s1.tolist(),
-                index=s1.index
-            )
-            .stack()
-            .rename('姓名')
-        )
-        s1.index = s1.index.droplevel(1)
-        s1 = (
-            s1
-            .reset_index()
-            .drop_duplicates()
-        )
-        s1['職稱'] = li.iloc[0]['職稱']
+        s2 = []
+        for k, vs in s1.items():
+            for v in vs:
+                s2.append((k, v))
+        s2 = pd.DataFrame(s2, columns=['姓名', 'name'])
+        li = li.merge(s2, how='left')
+        idx = li.loc[li.name.notnull()].index
+        li.loc[idx, '姓名'] = li.loc[idx, 'name']
+        li = li.drop('name', axis=1).drop_duplicates()
 
-        li = pd.concat([li, s1]).drop_duplicates()
-
-    ret = (
-        li
-        .merge(
-            boards
-            [['id', '姓名']]
-            .assign(flag=1),
-            how='left'
-        )
+    ret = li.merge(
+        boards
+        [['id', '姓名']]
+        .assign(flag=1),
+        how='left'
     )
-    ret = ret[
-        (ret['flag'].isnull()) &
-        (ret['姓名'].apply(chk_board))
-    ]
-    ret = ret.drop('flag', axis=1)
+    ret = (
+        ret.loc[
+            (ret['flag'].isnull()) &
+            (ret['姓名'].apply(chk_board))
+        ]
+        .drop('flag', axis=1)
+    )
 
     boards = pd.concat([ret, boards])
 
