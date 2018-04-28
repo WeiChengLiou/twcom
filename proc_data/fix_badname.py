@@ -6,7 +6,7 @@ import numpy as np
 import re
 import pandas as pd
 from twcom.utils import db, chk_board
-from twcom.work import show, yload, replaces
+from twcom.work import show, yload
 show(pd.__version__)
 
 
@@ -191,12 +191,16 @@ li = set()
 for r in ret:
     for dic in r['董監事名單']:
         dic['id'] = r['id']
-        dic['職稱'] = replaces(dic['職稱'], ['\r', '\n', '\t']).strip()
         key = dic['id'], dic['姓名'], dic['序號']
         if key not in li:
             boards.append(dic)
             li.add(key)
 boards = pd.DataFrame(boards)
+boards['職稱'] = (
+    boards['職稱']
+    .str.replace('([\r\n\t]|null)', '')
+    .str.strip()
+)
 
 
 ##
