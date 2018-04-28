@@ -583,23 +583,25 @@ id_name = pd.concat([id_name, ret_idname])
 
 
 ##
-# Clean up boards
-skip_rolls = ('代表人', '負責人', '訴訟及非訴訟代理人')
-ret = boards[(~boards['職稱'].isin(skip_rolls))]
-cnt = (
-    ret[ret['姓名'] != '']
-    .groupby(['id', '姓名'])
-    ['序號'].count()
-    .rename('cnt')
-)
-cnt = cnt[cnt > 1].reset_index().drop('cnt', axis=1)
-df2 = ret.merge(cnt).groupby(['id', '姓名']).first().reset_index()
-ret = ret.merge(cnt, how='left', indicator=True)
-ret = pd.concat([
-    ret[ret['_merge'] == 'left_only'].drop('_merge', axis=1),
-    df2
-]).sort_values(['id', '序號'])
-boards = ret
+# Clean up duplicate boards by (id, 姓名)
+# DEPRECATED: Since the seats will be reduced.
+
+# skip_rolls = ('代表人', '負責人', '訴訟及非訴訟代理人')
+# ret = boards[(~boards['職稱'].isin(skip_rolls))]
+# cnt = (
+#     ret[ret['姓名'] != '']
+#     .groupby(['id', '姓名'])
+#     ['序號'].count()
+#     .rename('cnt')
+# )
+# cnt = cnt[cnt > 1].reset_index().drop('cnt', axis=1)
+# df2 = ret.merge(cnt).groupby(['id', '姓名']).first().reset_index()
+# ret = ret.merge(cnt, how='left', indicator=True)
+# ret = pd.concat([
+#     ret[ret['_merge'] == 'left_only'].drop('_merge', axis=1),
+#     df2
+# ]).sort_values(['id', '序號'])
+# boards = ret
 
 
 ##
