@@ -46,32 +46,6 @@ def update(df0, df1, col, col1=None):
 
 
 ##
-def grp_unify(s1: pd.Series):
-    """ Group select and offer fix id """
-    col = s1.name
-    colfix = col + 'fix'
-    # cnt = s1.groupby(level=lvls).count()
-    cnt = s1.index.to_Series().value_counts()
-    cnt = cnt[cnt > 1]
-    if len(cnt) > 0:
-        df1 = s1.loc[cnt.index].sort_values()
-        df3 = (
-            df1
-            .reset_index()
-            .merge(
-                df1
-                .groupby(df1.index.names)
-                .first()
-                .rename(colfix)
-            )
-        )
-        df3 = df3[df3.keyno != df3.keynofix]
-        return df3
-    else:
-        return None
-
-
-##
 # Retrieve bad name list
 
 # Construct (id, name) pair dictionary
@@ -530,20 +504,6 @@ ret = (
     .drop('flag', axis=1)
 )
 
-ret_idname = (
-    boards
-    [['instid', 'inst']]
-    .drop_duplicates()
-    .dropna()
-    .rename(columns={
-        'instid': 'id',
-        'inst': 'name',
-    })
-)
-ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
-ret_idname['source'] = 'org'
-id_name = pd.concat([id_name, ret_idname])
-
 ret_boards = ret.drop_duplicates()
 ret_boards['職稱'] = '法人代表'
 boards = pd.concat([boards, ret_boards])
@@ -606,51 +566,20 @@ boards = update(boards, id_map.reset_index(), 'instid', 'fix')
 
 
 ##
-# Fix instid with inst
-idmap = (
-    id_name[
-        (id_name['source'] == 'org') &
-        (id_name['id'] != id_name['keyno'])
-    ]
-    [['id', 'keyno']]
-)
-boards = update(boards, idmap.rename(columns={'id': 'instid'}),
-                'instid', 'keyno')
-id_name = id_name.drop(idmap.index)
-
-
-##
-# Fix inst as board name
-com_name = (
-    id_name['name']
-    .rename('姓名')
+# update id_name after instid drop duplicates
+ret_idname = (
+    boards
+    [['instid', 'inst']]
     .drop_duplicates()
-    .to_frame()
-)
-ret = boards.merge(com_name)
-ret = (
-    ret[ret['instid'].isnull()]
-    [['id', '姓名']]
-)
-ret1 = (
-    id_name
-    [id_name['name'].isin(ret['姓名'])]
-    .groupby('name')
-    .keyno
-    .first()
-    .reset_index()
+    .dropna()
     .rename(columns={
-        'name': 'inst',
-        'keyno': 'instid'
+        'instid': 'id',
+        'inst': 'name',
     })
 )
-ret1['姓名'] = ret1['inst']
-ret = ret.merge(ret1)
-if len(ret) > 0:
-    boards.set_index(['id', '姓名'])
-    ret.set_index((['id', '姓名']))
-    boards.update(ret)
-    boards.reset_index()
+ret_idname = ret_idname[~ret_idname['id'].isin(id_name['id'])]
+ret_idname['source'] = 'org'
+id_name = pd.concat([id_name, ret_idname])
 
 
 ##
