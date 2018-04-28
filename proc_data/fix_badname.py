@@ -236,7 +236,7 @@ df_noid = df_noid.merge(
     .to_frame()
     .assign(c=1),
     how='left'
-).drop('c', axis=1)
+)
 
 if df_noid.c.isnull().sum() > 0:
     print('WARNING: Get unknown instid with unknown inst names')
@@ -432,12 +432,11 @@ for c, title in namecol:
 ##
 # Assign unique id to no-id-inst
 ret = (
-    boards
-    [
+    boards.loc[
         (boards['inst'].notnull()) &
-        (boards['instid'] == 0)
+        (boards['instid'] == '0'),
+        ['id', 'inst']
     ]
-    [['id', 'inst']]
     .drop_duplicates()
 )
 ret['fix'] = [('T%07d' % x) for x in range(len(ret))]
@@ -445,9 +444,12 @@ boards = update(boards, ret, 'instid', 'fix')
 
 
 ##
-# Build up inst representatives list
+# Build up 法人代表 list
 ret = (
-    boards.loc[boards['inst'].notnull(), ['instid', '姓名']]
+    boards.loc[
+        boards['inst'].notnull() & (boards['姓名'] != ''),
+        ['instid', '姓名']
+    ]
     .drop_duplicates()
     .rename(columns={'instid': 'id'})
     .merge(
