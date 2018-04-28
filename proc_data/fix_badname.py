@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##
+import itertools as it
 from functools import reduce
 import numpy as np
 import re
@@ -45,17 +46,26 @@ def update(df0, df1, col, col1=None):
 
 
 ##
-def grp_unify(df):
+def grp_unify(s1: pd.Series):
     """ Group select and offer fix id """
-    lvls = range(df.index.nlevels)
-    col = df.name
+    col = s1.name
     colfix = col + 'fix'
-    cnt = df.groupby(level=lvls).count()
+    # cnt = s1.groupby(level=lvls).count()
+    cnt = s1.index.to_Series().value_counts()
     cnt = cnt[cnt > 1]
     if len(cnt) > 0:
-        df1 = df.loc[cnt.index].copy().to_frame()
-        df2 = df1.groupby(level=lvls)[col].min().rename(colfix)
-        df3 = df1.reset_index().merge(df2.reset_index()).drop_duplicates()
+        df1 = s1.loc[cnt.index].sort_values()
+        df3 = (
+            df1
+            .reset_index()
+            .merge(
+                df1
+                .groupby(df1.index.names)
+                .first()
+                .rename(colfix)
+            )
+        )
+        df3 = df3[df3.keyno != df3.keynofix]
         return df3
     else:
         return None
@@ -145,6 +155,7 @@ skips = [
     '株式会社',
     '有限公司',
     '(株)',
+    '「工商憑證申請」',
 ]
 
 rx = re.compile('商$', re.UNICODE)
@@ -430,7 +441,7 @@ for c, title in namecol:
 
 
 ##
-# Assign unique id to no-id-inst
+# Fix instid by inst
 ret = (
     boards.loc[
         (boards['inst'].notnull()) &
@@ -439,7 +450,60 @@ ret = (
     ]
     .drop_duplicates()
 )
+
+name_cnt = (
+    id_name
+    .merge(
+        ret[['inst']]
+        .rename(columns={'inst': 'name'})
+        .drop_duplicates()
+    )
+    .name.value_counts()
+)
+
+# Fix one-to-one match
+df1 = (
+    id_name
+    .loc[
+        id_name.name.isin(name_cnt[name_cnt == 1].index.tolist()),
+        ['id', 'name']
+    ]
+)
+ret = (
+    ret
+    .merge(
+        df1.rename(columns={
+            'id': 'fix',
+            'name': 'inst',
+        }),
+        how='left')
+    .dropna()
+)
+boards = update(boards, ret, 'instid', 'fix')
+
+# Skip multiple-to-one match until 法人代表 list constructed
+
+##
+# Assign unique id to no-id-inst by (id, inst)
+with open('doc/uniq_org_filter.txt', 'r') as f:
+    uniqs = f.read().strip().replace('\n', '|')
+    rx = re.compile('({})'.format(uniqs))
+
+ret = (
+    boards.loc[
+        (boards['inst'].notnull()) &
+        (boards['instid'] == '0'),
+        ['id', 'inst']
+    ]
+    .drop_duplicates()
+    .sort_values(['inst', 'id'])
+)
 ret['fix'] = [('T%07d' % x) for x in range(len(ret))]
+
+idx = ret[ret.inst.str.extract(rx, expand=False).notnull()].index
+for inst, df_ in ret.loc[idx].groupby('inst'):
+    fix = df_.fix.min()
+    ret.loc[df_.index, 'fix'] = fix
 boards = update(boards, ret, 'instid', 'fix')
 
 
@@ -486,33 +550,59 @@ boards = pd.concat([boards, ret_boards])
 
 
 ##
-# Brute force find same company by name
-id_name['keyno'] = id_name['id']
-cnt = 0
-while 1:
-    print('Big loop')
-    id_fix = (
-        grp_unify(id_name.set_index(['name'])['keyno'])
-        .drop('name', axis=1)
+# Fix instid by inst (step 2)
+# Sync same `inst` but different `instid` by boards comparison
+df1 = (
+    boards
+    [['inst', 'instid']]
+    .drop_duplicates()
+    .dropna()
+)
+cnt = df1.inst.value_counts()
+df1 = (
+    df1[df1.inst.isin(cnt[cnt > 1].index)]
+    .sort_values(['inst', 'instid'])
+)
+board_ids = boards.merge(df1.instid.to_frame()).id.drop_duplicates()
+df2 = boards[boards.id.isin(board_ids)]
+
+id_map = (
+    df1[['instid']]
+    .assign(fix=lambda x: x['instid'])
+    .set_index('instid')
+    .fix
+)
+
+for inst, df_ in df1.groupby('inst'):
+    df3 = (
+        df2
+        .loc[df2.instid.isin(df_.instid), ['id', 'instid']]
         .drop_duplicates()
     )
-    df1_fix = grp_unify(
-        id_fix
-        .set_index(['keyno'])
-        ['keynofix']
+    df4 = (
+        df2.loc[df2.id.isin(df3.id)]
+        .drop('instid', axis=1)
+        .merge(df3)
+        [['姓名', 'instid']]
+        .drop_duplicates()
+        .set_index(['姓名', 'instid'])
+        .assign(C=1.)
+        .C
+        .unstack()
+        .fillna(0)
+        .astype(int)
     )
-    if df1_fix is not None:
-        print('sub update')
-        id_fix = (
-            update(id_fix, df1_fix, 'keynofix', 'keynofixfix')
-            .drop_duplicates()
-            )
-        id_name = update(id_name, id_fix, 'keyno', 'keynofix')
-    cnt1 = id_name['keyno'].drop_duplicates().count()
-    if cnt1 == cnt:
-        break
-    else:
-        cnt = cnt1
+    grps = []
+    grpdic = {}
+    for id1, id2 in it.combinations(df4.columns, 2):
+        cnt = (df4[[id1, id2]].sum(axis=1) == 2).sum()
+        if cnt > 1:
+            x = [id1, id2]
+            fix = id_map.loc[x].min()
+            idgrp = id_map.loc[x].drop_duplicates().tolist()
+            id_map.loc[id_map.isin(idgrp)] = fix
+
+boards = update(boards, id_map.reset_index(), 'instid', 'fix')
 
 
 ##
