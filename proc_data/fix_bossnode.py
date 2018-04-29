@@ -56,6 +56,7 @@ def upd_link(df0, links):
             .reset_index()
         )
     )
+    df3 = df3[df3.ref != df3.reffix]
 
     df4 = df0.merge(df3, how='left', indicator=True)
     df4.loc[df4._merge == 'both', 'ref'] = \
@@ -115,7 +116,11 @@ boards = boards.drop('ref', axis=1).merge(df0)
 ##
 coll = db.boards1
 coll.drop()
-coll.insert_many(boards.to_dict('record'))
+coll.insert_many(
+    boards
+    .drop('_id', axis=1)
+    .to_dict('record')
+)
 print('%s inserted %s items' % (coll.name, coll.count()))
 
 ##
