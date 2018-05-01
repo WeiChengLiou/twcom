@@ -70,13 +70,15 @@ def getnamedic(ids, cn=None):
     # if not found, return id
     # return dictionary(id, name)
     if not cn:
-        cn = db.cominfo
+        cn = db.cominfo1
     if not hasattr(ids, '__iter__'):
         ids = (ids,)
-    ret = cn.find({'id': {'$in': ids}}, ['id', 'name'])
-    dic = {id: id for id in ids}
-    for r in ret:
-        dic[r['id']] = r['name']
+    ret = cn.find({'id': {'$in': ids}},
+                  {'id': 1, 'name': 1, '_id': 0})
+    dic = {r['id']: r['name'] for r in ret}
+    for id in ids:
+        dic.setdefault(id, id)
+
     return dic
 
 

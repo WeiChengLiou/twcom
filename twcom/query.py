@@ -15,6 +15,21 @@ CONFIG = yaml.load(open('config.yaml'))
 
 
 ##
+def get_board_name(name):
+    return db.boards1.aggregate([
+        {'$match': {'姓名': re.compile(name)}},
+        {'$group': {'_id': {'name': '$姓名', 'ref': '$ref'},
+                    'coms': {'$push': '$id'},
+                    'title': {'$push': '$職稱'},
+                    }}
+    ])
+
+
+for x in get_board_name('王雪紅'):
+    print(x)
+
+
+##
 def get_board_ref(refs):
     return db.boards1.aggregate([
         {'$match': {'ref': {'$in': refs}}},
@@ -455,32 +470,23 @@ w2 = '\u202c'
 ##
 def queryboss(name):
     name = name.replace(w2, '')
-    ret = list(db.bossnode.find({'name': re.compile(name)}, {'target': 0}))
-    ids = set(flatten([r['orgs'] for r in ret]))
+    ret = get_board_name(name)
+    li = []
+    for r in ret:
+        li.append({
+            'name': r['_id']['name'],
+            'id': r['_id']['ref'],
+            'coms': r['coms']})
+    ids = set()
+    for r in ret:
+        ids.update(r['coms'])
     dic = getnamedic(tuple(ids))
     for r in ret:
-        r['orgs'] = map(lambda x: dic.get(x, x), r['orgs'])
-        r['_id'] = str(r['_id'])
+        r['coms'] = list(map(lambda x: dic.get(x, x), r['coms']))
     return ret
 
 
-def get_bossnet_boss(names, bossid=None, maxlvl=1):
-    # get boss network from boss name
-    if not bossid:
-        names = list(get_boss_node(names))
-    else:
-        names = [getbosskey(names, bossid)]
-    g = get_boss_network(names=names, maxlvl=maxlvl)
-    return g
 ##
-
-
-@deprecated
-def get_bossesnet(ids, **kwargs):
-    # get boss network from company ids
-    # fill boss info for export
-    targets = list(getcomboss(ids))
-    return get_boss_network(target=targets, **kwargs)
 
 
 def get_network_names(names, maxlvl=None):
