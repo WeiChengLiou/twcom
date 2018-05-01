@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import networkx as nx
-import calComNet as cn
 
 
 g = nx.random_graphs.erdos_renyi_graph(1000, 0.1)
@@ -10,9 +9,11 @@ g = nx.random_graphs.erdos_renyi_graph(1000, 0.1)
 
 # ret = nx.closeness_centrality(g)
 # print ret
-# 
+#
 # ret = cn.closeness_centrality_parallel(g)
 # print ret
+
+# 橫濱豐行, 越部陽一郎
 
 
 if __name__ == '__main__':

@@ -1,17 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from twcom.query import *
+from twcom.query import getcomboss
 from twcom.work import show
+from twcom.utils import getid
 from vis import output as opt
+from collections import defaultdict
+from utils import db, getname
+import pandas as pd
 
 
-def test_comboss():
+def test_comboss(self):
     id = getid(u'東賢投資有限公司')
     print(id)
     names, coms = zip(*[x.split('\t') for x in getcomboss(id)])
     show(names)
     comdic = defaultdict(int)
-    ret = cn.bossnode.find({'name': {'$in': names},
+    ret = db.bossnode.find({'name': {'$in': names},
                             'coms': {'$in': [id]}})
     for r in ret:
         for id in r['coms']:
@@ -21,7 +25,7 @@ def test_comboss():
     df['name'] = map(getname, df.index)
     df['seat'] = [0]*len(df)
 
-    for r in cn.cominfo.find({'id': {'$in': df.index.tolist()}}):
+    for r in db.cominfo.find({'id': {'$in': df.index.tolist()}}):
         df.ix[r['id'], 'seat'] = r['boardcnt']
     df['ratio'] = df.T.apply(lambda x: float(x['count'])/x['seat']*100 if x['seat'] > 0 else 0)
     df = df.sort('ratio')

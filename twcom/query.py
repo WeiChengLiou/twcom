@@ -1,106 +1,133 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+##
+# from collections import defaultdict
+from functools import reduce
 from bson.objectid import ObjectId
-from twcom.utils import db, init, logger, getnamedic, chk_board
-from twcom.work import show, getitem, deprecated, getdf, fixname
+from twcom.utils import db, logger, getnamedic, chk_board
+from twcom.work import getitem, deprecated, getdf, fixname
 from twcom.work import flatten
 import numpy as np
 import itertools as it
 import networkx as nx
-from traceback import print_exc
 from pdb import set_trace
 import re
-from collections import defaultdict
+# from collections import defaultdict
 from vis import output as opt
 import yaml
 CONFIG = yaml.load(open('config.yaml'))
 
 
+##
+def get_board_ref(refs):
+    return db.boards1.aggregate([
+        {'$match': {'ref': {'$in': refs}}},
+        {'$group': {'_id': '$ref',
+                    'coms': {'$push': '$id'},
+                    'title': {'$push': '$職稱'},
+                    }}
+    ])
+
+
+# refs = list(get_boss_node('王雪紅'))
+# for x in get_board_ref(refs):
+#     print(x)
+
+
+##
+def get_board_list(coms):
+    return (
+        db.boards1.aggregate([
+            {'$match': {'id': {'$in': coms}}},
+            {'$group': {'_id': '$id',
+                        'refs': {'$addToSet': '$ref'}}}
+        ])
+    )
+
+
+# for x in get_board_list(['28679184', '02562104']):
+#     print(x)
+
+
+##
+def get_com_name(ids):
+    return db.cominfo1.find(
+        {'id': {'$in': ids}},
+        {'_id': 0, 'id': 1, 'name': 1}
+    )
+
+
+# ids = ['00000000']
+# for x in get_com_name(ids):
+#     print(x)
+
+
+##
 # Basic{{{
 def get_boss_network(**kwargs):
     # 逐級建立董監事網絡圖
     if kwargs.get('names'):
-        targets = getbosslike(kwargs.get('name', u''))
+        refs = list(get_boss_node(kwargs['names']))
     else:
-        targets = kwargs.get('target', [])
-        if not hasattr(targets, '__iter__'):
-            targets = [targets]
-        if isinstance(targets[0], basestring):
-            targets = map(ObjectId, targets)
+        refs = kwargs.get('refs', [])
+        if isinstance(refs, str) or (not hasattr(refs, '__iter__')):
+            refs = [refs]
+        refs = map(ObjectId, refs)
 
-    def list_boss(boards):
-        try:
-            return list(filter(lambda r: r.get('target'), boards))
-        except:
-            show(boards)
-            print_exc()
+    maxlvl = kwargs.get('maxlvl', 1)
+    namelvl = {}
+    comdic = {}
 
-            raise Exception('boards error')
+    isFullGraph = kwargs.get('isFullGraph', 0)
+
+    def update_nodes(G, refs, lvl):
+        li = list(get_board_ref(refs))
+
+        # Update comdic level
+        for r in li:
+            for id in r['coms']:
+                if id not in comdic:
+                    comdic[id] = {'lvl': lvl}
+        coms = [k for k, v in comdic.items() if v['lvl'] == lvl]
+
+        # Update comdic name
+        for x in get_com_name(coms):
+            comdic[x['id']]['name'] = x['name']
+
+        # Update node and title
+        for r in li:
+            size = len(r['coms'])
+            titles = '\n'.join([
+                '{} {}'.format(comdic[com]['name'], title)
+                for com, title in zip(r['coms'], r['title'])
+            ])
+            G.add_node(str(r['_id']), size=size, title=titles)
+
+    for r in refs:
+        namelvl[str(r)] = 0
 
     G = nx.Graph()
-    comdic = {}
-    maxlvl = kwargs.get('maxlvl', 1)
-    namedic = {str(k): 0 for k in targets}
-    db = kwargs.get('db', init(CONFIG['db']))
-    method = kwargs.get('method', 0)
-
-    ret = db.bossnode.find({
-        '_id': {'$in': targets}})
-    for r in ret:
-        [comdic.setdefault(x, 0) for x in r['orgs']]
+    update_nodes(G, refs, 0)
     coms = list(comdic.keys())
-    titledic = defaultdict(list)
 
-    def subgraph(G, coms, lvl):
-        # 1. 給定 name 與 target，查詢相關公司
-        newlvl = lvl + 1
-        if not coms:
-            return G, coms, newlvl
-
-        # 2. 給定相關公司後，找出同間公司的董監名單
-        ret = db.cominfo.find(
-            {'id': {'$in': coms},
-             'source': 'twcom',
-             }, {'id': 1, 'boards': 1, '_id': 0, 'name': 1})
+    for lvl in range(1, maxlvl + 1):
+        # 給定相關公司後，找出同間公司的董監名單
+        ret = get_board_list(coms)
         for rs in ret:
-            boards = list_boss(rs['boards'])
-            [b.__setitem__('target', str(b['target'])) for b in boards]
-            bosset = getitem(boards, 'target')
-            addbossedge(G, bosset, method)
-            [namedic.setdefault(b, lvl) for b in bosset]
-            for b in boards:
-                titledic[b['target']].append(
-                    u'{0} {1}'.format(rs['name'], b['title']))
+            refs = list(map(str, rs['refs']))
+            addbossedge(G, refs, isFullGraph)
+            [namelvl.setdefault(b, lvl) for b in refs]
 
-        for key0, lvl0 in namedic.iteritems():
-            if lvl0 == lvl - 1:
-                node = G.node[key0]
-                node['titles'] = u'\n'.join(titledic.pop(key0))
+        refs = [ObjectId(key1) for key1, lvl1 in
+                namelvl.items() if lvl1 == lvl]
+        update_nodes(G, refs, lvl)
 
-        if lvl >= maxlvl:
-            return G, coms, newlvl
+        coms = [k for k, v in comdic.items() if v['lvl'] == lvl]
+        if not coms:
+            break
 
-        newtgt = [ObjectId(key1) for key1, lvl1 in
-                  namedic.iteritems() if lvl1 == lvl]
-        ret = db.bossnode.find({'_id': {'$in': newtgt}})
-        for r in ret:
-            r['size'] = len(r['orgs'])
-            [comdic.setdefault(x, newlvl) for x in r['orgs']]
-            G.node[str(r.pop('_id'))].update(r)
-
-        coms = [k for k, v in comdic.iteritems() if v == lvl]
-
-        return G, coms, newlvl
-
-    G, coms, newlvl = reduce(
-        lambda x, y: subgraph(*x),
-        range(maxlvl + 1),
-        (G, coms, 0))
     return G
 
 
-def addbossedge(G, rs, method=0):
+def addbossedge(G, rs, isFullGraph=0):
     # 3. 根據不同 graph 需求，畫出同公司董監事間的 boss edge
     if not rs:
         return
@@ -110,9 +137,9 @@ def addbossedge(G, rs, method=0):
             dic = G.get_edge_data(key1, key2)
             dic['weight'] += 1
         else:
-            G.add_edge(key1, key2, {'weight': 1})
+            G.add_edge(key1, key2, weight=1)
 
-    if method == 0:
+    if isFullGraph == 0:
         r0 = rs[0]
         for r in rs[1:]:
             addedge(r0, r)
@@ -121,6 +148,7 @@ def addbossedge(G, rs, method=0):
             addedge(r1, r2)
 
 
+##
 def get_network(ids, maxlvl=1, **kwargs):
     # 逐級建立公司網絡圖
 
@@ -147,7 +175,7 @@ def get_network(ids, maxlvl=1, **kwargs):
         ret = db.ComBosslink.find(cond, {'_id': 0})
 
         for r in filter(lambda r: not G.has_edge(r['src'], r['dst']),
-                            ret):
+                        ret):
             if r['src'] not in items:
                 items[r['src']] = newlvl
             if r['dst'] not in items:
@@ -169,14 +197,14 @@ def get_network(ids, maxlvl=1, **kwargs):
 # Support {{{
 
 
-def getbosslike(names):
-    # look for match boss given boss name
-    if not hasattr(names, '__iter__'):
+def get_boss_node(names):
+    # look for boss node given boss name
+    if (not hasattr(names, '__iter__')) or (isinstance(names, str)):
         names = [names]
     for name in names:
-        ret = db.bossnode.find({'name': name})
+        ret = db.boards1.find({'姓名': name}).distinct('ref')
         for r in ret:
-            yield r['_id']
+            yield r
 
 
 def getidlike(names):
@@ -252,7 +280,7 @@ def getcomboss(ids):
     ret = db.cominfo.find({'id': {'$in': ids}})
     for r in ret:
         for boss in filter(lambda boss: boss.get('target'),
-                               r['boards']):
+                           r['boards']):
             yield boss['target']
 
 
@@ -393,8 +421,8 @@ def showkv(id, name, info=None):
         coldic = [('id', u'統一編號'), ('name', u'公司名稱'),
                   ('status', u'公司狀況'), ('eqtstate', u'股權狀況')]
         for col, colname in filter(lambda col: col in info,
-                                       coldic):
-            s1.append(u'%s: %s' % (colname, unicode(info[col])))
+                                   coldic):
+            s1.append(u'%s: %s' % (colname, info[col]))
 
     # Because board maybe None, or DataFrame,
     # but can also be empty DataFrame or not.
@@ -402,7 +430,7 @@ def showkv(id, name, info=None):
     if info['boards']:
         for b in info['boards']:
             s1.append(
-                u' '.join(map(lambda c: unicode(b[c]), boardcol)))
+                u' '.join(map(lambda c: b[c], boardcol)))
     else:
         s1.append(u'無董監事資料')
 
@@ -470,6 +498,7 @@ def fill_boss_info(G):
 w2 = u'\u202c'
 
 
+##
 def queryboss(name):
     name = name.replace(w2, u'')
     ret = list(db.bossnode.find({'name': re.compile(name)}, {'target': 0}))
@@ -484,11 +513,12 @@ def queryboss(name):
 def get_bossnet_boss(names, bossid=None, maxlvl=1):
     # get boss network from boss name
     if not bossid:
-        names = list(getbosslike(names))
+        names = list(get_boss_node(names))
     else:
         names = [getbosskey(names, bossid)]
-    g = get_boss_network(names, maxlvl)
+    g = get_boss_network(names=names, maxlvl=maxlvl)
     return g
+##
 
 
 @deprecated
@@ -515,7 +545,7 @@ def get_network_boss(name=None, target=None, **kwargs):
 
     if not target:
         name = name.replace(w2, u'')
-        targets = list(getbosslike(name))
+        targets = list(get_boss_node(name))
         cond = {'_id': {'$in': targets}}
     else:
         cond = {'_id': ObjectId(target)}
@@ -590,7 +620,7 @@ def getComNet(ids, maxlvl=1, **kwargs):
         ret = db.comivst.find(cond, {'_id': 0, 'death': 0})
 
         for r in filter(lambda r: not G.has_edge(r['src'], r['dst']),
-                            ret):
+                        ret):
             if r['src'] not in items:
                 items[r['src']] = newlvl
             if r['dst'] not in items:
