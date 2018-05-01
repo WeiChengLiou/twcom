@@ -184,6 +184,11 @@ boards['職稱'] = (
     .str.replace('([\r\n\t]|null)', '')
     .str.strip()
 )
+boards['姓名'] = (
+    boards['姓名']
+    .str.replace('[\r\n\t\u3000]', '')
+    .str.strip()
+)
 
 
 ##
