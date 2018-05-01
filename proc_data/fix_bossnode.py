@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 ##
 import bson
 import networkx as nx
@@ -34,12 +32,12 @@ def upd_link(df0, links):
         .merge(links)
         .merge(df0[df0['id'].isin(links['src'])]
                .rename(columns={'id': 'src'}),
-               on=['src', u'姓名'],
+               on=['src', '姓名'],
                suffixes=['', '_1'])
     )
     df2 = (
         df1
-        .groupby(u'姓名')
+        .groupby('姓名')
         .apply(lambda x: nx.Graph(x[['src', 'dst']].values.tolist()))
     )
 
@@ -47,11 +45,11 @@ def upd_link(df0, links):
     for name, G in df2.iteritems():
         for i, x in enumerate(nx.connected_components(G)):
             df3.extend([(name, x1, i) for x1 in x])
-    df3 = pd.DataFrame(df3, columns=(u'姓名', 'id', 'no')).merge(df0)
+    df3 = pd.DataFrame(df3, columns=('姓名', 'id', 'no')).merge(df0)
     df3 = (
         df3
         .merge(
-            df3.groupby([u'姓名', 'no'])['ref'].min()
+            df3.groupby(['姓名', 'no'])['ref'].min()
             .rename('reffix')
             .reset_index()
         )
@@ -71,9 +69,16 @@ def upd_link(df0, links):
 
 
 ##
-boards = getdf(db.boards1.find({u'姓名': {'$ne': u''}}))
+# Create boss node, skip empty 姓名
+boards = getdf(db.boards1.find({'姓名': {'$ne': ''}}, {'ref': 0}))
 boards['ref'] = boards['_id'].apply(str)
-df0 = (boards[['id', u'姓名', 'ref']])
+
+df0 = (
+    boards
+    .groupby(['id', '姓名'])
+    .ref.min()
+    .reset_index()
+)
 
 
 ##
@@ -87,12 +92,12 @@ print(df0.shape)
 # link by same name group
 cnt = df0['ref'].drop_duplicates().shape
 while 1:
-    df1 = df0.merge(df0, on=[u'姓名'])
+    df1 = df0.merge(df0, on=['姓名'])
     df1 = df1[df1['id_x'] != df1['id_y']]
     df1['id_1'] = df1[['id_x', 'id_y']].min(axis=1)
     df1['id_2'] = df1[['id_x', 'id_y']].max(axis=1)
-    df1 = df1[['id_1', 'id_2', u'姓名']].drop_duplicates()
-    df2 = df1.groupby(['id_1', 'id_2'])[u'姓名'].count().rename('cnt')
+    df1 = df1[['id_1', 'id_2', '姓名']].drop_duplicates()
+    df2 = df1.groupby(['id_1', 'id_2'])['姓名'].count().rename('cnt')
     df2 = df2[df2 > 1]
     df2 = (
         df2.reset_index()
@@ -114,11 +119,17 @@ df0['ref'] = df0['ref'].apply(bson.ObjectId)
 boards = boards.drop('ref', axis=1).merge(df0)
 
 ##
+assert boards._id.value_counts().max() == 1, 'Double _id!!'
+
+
+##
+boards.to_pickle('boards1.pkl')
+##
+print('Data processed. Preparing insert data...')
 coll = db.boards1
 coll.drop()
 coll.insert_many(
     boards
-    .drop('_id', axis=1)
     .to_dict('record')
 )
 print('%s inserted %s items' % (coll.name, coll.count()))
