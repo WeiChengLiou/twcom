@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 ##
 import numpy as np
 import pandas as pd
@@ -8,6 +6,16 @@ from twcom.work import getdf
 import seaborn as sns
 sns.set_context('poster')
 pd.__version__
+
+
+def unwind(ret):
+    return (
+        pd.concat([
+            ret,
+            pd.DataFrame(ret['_id'].tolist())
+        ], axis=1)
+        .drop('_id', axis=1)
+    )
 
 
 ##
@@ -47,36 +55,73 @@ ret = (
 
 
 ##
-# Create Company link
+# Get title list
+titles = coll.distinct('職稱')
+df = getdf(
+    coll.aggregate([
+        {'$group': {'_id': {'id': '$id', 'title': '$職稱'},
+                    'cnt': {'$sum': 1}}}
+    ], allowDiskUse=True)
+).pipe(unwind)
+
+print(df.head())
+
+
+##
+# Count Total Seats
+# Consider for empty name but unempty inst. Ex: 86380710.
+# Group by id, 姓名, instid
+# Remove empty 姓名,職稱,所代表法人. Ex: 28679184.
+# Keep duplicate 姓名 by id. Ex: 02562104.
+# Remove invalid titles(法人代表、監察人、清理人). Ex: 03705903.
+
+# 重複姓名席次計算：
+# 有 instid: 代表多個席次, 應保留
+# 無 instid: 可能只是單純重複, 也可能是多個席位，先保留計算
+
+invalid_title = ['接管小組召集人', '法人代表', '監察人', '臨時管理人',
+                 '重整人', '重整監督人']
+
+ret = coll.aggregate([
+    {'$match': {
+        '$or': [
+            {'姓名': {'$ne': ''}},
+            {'職稱': {'$ne': ''}},
+            {'所代表法人': {'$ne': ''}}],
+        '職稱': {'$nin': invalid_title}
+    }},
+    # {'$group': {'_id': {'id': '$id', 'name': '$姓名', 'instid': '$instid'}}},
+    {'$group': {'_id': {'id': '$id'},
+                'total': {'$sum': 1}}},
+])
+total_seats = unwind(getdf(ret))
+
+
+##
+# Create Company link and count investment seats
+# Keep duplicate 姓名 by id. Ex: 02562104.
+# Remove invalid titles(法人代表、監察人、清理人). Ex: 03705903.
 coll = db.boards1
 ret = coll.aggregate([
-    {'$match': {'instid': {'$ne': np.nan}}},
-    {'$group': {'_id': {'instid': '$instid', 'id': '$id'},
+    {'$match': {
+        'instid': {'$ne': np.nan},
+        '職稱': {'$nin': invalid_title},
+    }},
+    {'$group': {'_id': {'id': '$id', 'name': '$姓名', 'instid': '$instid'}}},
+    {'$group': {'_id': {'src': '$_id.instid', 'dst': '$_id.id'},
                 'cnt': {'$sum': 1}}},
-    {'$sort': {'cnt': -1}},
+    # {'$sort': {'cnt': -1}},
 ])
-ret = getdf(ret)
-ret = (
-    ret.join(pd.DataFrame(ret['_id'].to_dict()).T)
-    .drop('_id', axis=1)
-    .rename(columns={'instid': 'src', 'id': 'dst'})
-)
+links = unwind(getdf(ret))
 
-board_cnt = coll.aggregate([
-    {'$match': {u'職稱': {'$ne': u'法人代表'},
-                'id': {'$in': ret['dst'].tolist()}}},
-    {'$group': {'_id': '$id', 'cnt': {'$sum': 1}}},
-    {'$sort': {'cnt': -1}},
-], allowDiskUse=True)
-board_cnt = (
-    getdf(board_cnt)
-    .rename(columns={'cnt': 'total', '_id': 'dst'}))
+##
+links = links.merge(total_seats.rename(columns={'id': 'dst'}), how='left')
+if links.total.min() == 0:
+    raise Exception('Some company has no seats')
 
-ret = ret.merge(board_cnt, how='left')
-ret['seat_ratio'] = ret.cnt.astype('float') / ret.total
-ret = (
-    ret
-    .drop('total', axis=1)
+links['seat_ratio'] = links.cnt.astype('float') / links.total
+links = (
+    links
     .merge(iddic[['id', 'name']]
            .rename(columns={'id': 'src', 'name': 'src_name'}))
     .merge(iddic[['id', 'name']]
@@ -87,15 +132,8 @@ ret = (
 ##
 coll = db.comLink1
 coll.drop()
-coll.insert_many(ret.to_dict('record'))
+coll.insert_many(links.to_dict('record'))
 print('%s inserted %s items' % (coll.name, coll.count()))
-
-
-##
-# Study board list
-def get_boards(id):
-    ret = db.boards.find({'id': id})
-    return getdf(ret)
 
 
 ##
