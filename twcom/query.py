@@ -155,41 +155,38 @@ def get_network(ids, maxlvl=1, **kwargs):
     if not hasattr(ids, '__iter__'):
         ids = [ids]
 
-    lnunit = kwargs.get('lnunit', 'ivstCnt')
+    # lnunit = kwargs.get('lnunit', 'ivstCnt')
     cond = {}
-    cond['death'] = 0
-    cond['ivst'] = kwargs.get('ivst', {'$gt': -1})
+    # cond['death'] = 0
+    # cond['ivst'] = kwargs.get('ivst', {'$gt': -1})
 
     G = nx.DiGraph()
     map(G.add_node, ids)
 
-    items = {id: 0 for id in ids}
+    lvl = 0
+    comlvl = {id: lvl for id in ids}
 
-    def subgraph(G, ids, lvl):
+    for lvl in range(maxlvl):
         newlvl = lvl + 1
-        if not ids:
-            return G, [], newlvl
 
         cond['$or'] = [{'src': {'$in': ids}},
                        {'dst': {'$in': ids}}]
-        ret = db.ComBosslink.find(cond, {'_id': 0})
+        ret = db.comLink1.find(cond, {'_id': 0})
 
         for r in filter(lambda r: not G.has_edge(r['src'], r['dst']),
                         ret):
-            if r['src'] not in items:
-                items[r['src']] = newlvl
-            if r['dst'] not in items:
-                items[r['dst']] = newlvl
+            if r['src'] not in comlvl:
+                comlvl[r['src']] = newlvl
+            if r['dst'] not in comlvl:
+                comlvl[r['dst']] = newlvl
 
-            r['width'] = r.get(lnunit, 1)
-            G.add_edge(r.pop('src'), r.pop('dst'), r)
+            r['width'] = r.get('cnt', 1)
+            G.add_edge(r.pop('src'), r.pop('dst'), **r)
 
-        ids1 = [key1 for key1, lvl1 in filter(
-                lambda x: lvl == x[1], items.iteritems())]
-        return G, ids1, newlvl
+        ids = [key1 for key1, lvl1 in comlvl.items() if lvl1 == newlvl]
+        if not ids:
+            break
 
-    G, ids, lvl = reduce(lambda x, y: subgraph(*x),
-                         range(maxlvl), (G, ids, 0))
     return G
 
 

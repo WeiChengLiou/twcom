@@ -4,7 +4,7 @@ import pandas as pd
 from collections import defaultdict
 import unittest
 from unittest import mock
-from twcom.query import get_boss_node, get_boss_network, db
+from twcom.query import get_boss_node, get_boss_network, get_network, db
 from twcom.query import get_board_list, get_board_ref, get_com_name
 from bson.objectid import ObjectId
 db, get_board_list, get_board_ref, get_com_name
@@ -37,6 +37,14 @@ test_boards = pd.DataFrame([
 test_boards['ref'] = test_boards['name'].apply(getObjectId)
 test_boards = test_boards.to_dict('record')
 
+dic = [
+    ('0', '1', 3),
+    ('0', '2', 1),
+    ('2', '3', 2),
+    ('3', '4', 4),
+]
+test_comLink = [{'src': k, 'dst': v, 'cnt': w} for k, v, w in dic]
+
 
 def board_list(coms):
     dic = defaultdict(list)
@@ -61,6 +69,13 @@ def board_ref(refs):
 def com_name(coms):
     for x in filter(lambda x: x['id'] in coms, sample_coms):
         yield x
+
+
+def comLink_find(arg1, arg2):
+    ids = arg1['$or'][0]['src']['$in']
+    li = filter(lambda x: (x['src'] in ids) or (x['dst'] in ids), test_comLink)
+    for x in li:
+        yield x.copy()
 
 
 class testQuery(unittest.TestCase):
@@ -89,6 +104,13 @@ class testQuery(unittest.TestCase):
         cnt = len(list(get_boss_node(name)))
         self.assertEqual(cnt, 2)
         func1.assert_called_with({'姓名': name})
+
+    @mock.patch('twcom.query.db')
+    def test_get_network(self, mock_db):
+        mock_db.comLink1.find.side_effect = comLink_find
+        ids = ['0']
+        G = get_network(ids, maxlvl=5)
+        self.assertEqual(G.number_of_nodes(), 5)
 
 
 if __name__ == '__main__':
