@@ -271,15 +271,15 @@ def getBoardbyID(ids):
     return dic
 
 
-def getbosskey(name, id):
-    # get boss key
-    ret = db.bossnode.find_one(
-        {'name': name,
-         'orgs': {'$in': [id]}})
-    if ret:
-        return '\t'.join((ret['name'], ret['target']))
-    else:
-        return None
+# def getbosskey(name, id):
+#     # get boss key
+#     ret = db.bossnode.find_one(
+#         {'name': name,
+#          'orgs': {'$in': [id]}})
+#     if ret:
+#         return '\t'.join((ret['name'], ret['target']))
+#     else:
+#         return None
 
 
 def getcomboss(ids):
@@ -440,15 +440,6 @@ def fill_company_info(G):
 
     G.remove_nodes_from(noderm)
     return G
-
-
-def fill_boss_node(G, targets):
-    # Fill boss node
-    ret = db.bossnode.find({'_id': {'$in': targets}})
-    for r in ret:
-        node = G.node[r['_id']]
-        node['orgs'] = r['orgs']
-        node['name'] = r['name']
 
 
 def fill_boss_info(G):
