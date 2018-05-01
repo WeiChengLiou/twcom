@@ -5,10 +5,8 @@ from bson.objectid import ObjectId
 from twcom.utils import db, logger, getnamedic, chk_board
 from twcom.work import getitem, deprecated, getdf, fixname
 from twcom.work import flatten
-import numpy as np
 import itertools as it
 import networkx as nx
-from pdb import set_trace
 import re
 # from collections import defaultdict
 from vis import output as opt
@@ -212,20 +210,20 @@ def getidlike(names):
         ret = db.iddic.find({'name': {'$regex': name}})
         for r in ret:
             if len(r['id']) > 1:
-                logger.warning(u'Duplicate id: %s', name)
+                logger.warning('Duplicate id: %s', name)
             yield {'name': r['name'], 'id': r['id'][0]}
 
 
 def bosskey(name=None, comid=None):
     # get boss key
     assert(not (id is None and comid is None))
-    return u'\t'.join([name, comid])
+    return '\t'.join([name, comid])
 
 
 def invbosskey(key):
     # inverse boss key
     if key:
-        return key.split(u'\t')
+        return key.split('\t')
 
 
 def get_boss(id, ind=False):
@@ -234,7 +232,7 @@ def get_boss(id, ind=False):
     #     id = [id]
     bconds = [(lambda b: chk_board(b['name']))]
     if ind:
-        bconds.append((lambda b: u'獨立' not in b['title']))
+        bconds.append((lambda b: '獨立' not in b['title']))
 
     ret = db.cominfo.find({'id': id}, {'_id': 0, 'name': 1, 'boards': 1})
     for r in ret:
@@ -264,7 +262,7 @@ def getbosskey(name, id):
         {'name': name,
          'orgs': {'$in': [id]}})
     if ret:
-        return u'\t'.join((ret['name'], ret['target']))
+        return '\t'.join((ret['name'], ret['target']))
     else:
         return None
 
@@ -282,7 +280,7 @@ def getcomboss(ids):
 
 
 def fillgrp(g, grps):
-    for k, v in g.node.iteritems():
+    for k, v in g.node.items():
         v['group'] = 0
         for i, grp in enumerate(grps):
             if k in grp:
@@ -293,36 +291,9 @@ def fillgrp(g, grps):
 # for Export {{{
 
 
-def cluster(xdic, k_clut=10):
-    # Clustering label in k_clut clusters
-    xs = sorted(xdic.values())
-    N = len(xdic)
-    x_uniq = np.unique(xs)
-    if len(x_uniq) <= k_clut:
-        x_uniq.sort()
-        output = {k: round(float(np.argwhere(x_uniq == y).ravel()[0] + 1) /
-                  len(x_uniq)*k_clut) for k, y in xdic.iteritems()}
-    else:
-        li = np.ones(k_clut, dtype=np.float64) * min(xs)
-        j, target = 0, 0
-        for i, y in enumerate(xs):
-            p = float(i) / N
-            if p >= target:
-                li[j] = y
-                j += 1
-                target = np.float64(j) / k_clut
-        try:
-            li = np.unique(li)
-            output = {k: round(float(np.argwhere(y >= li)[-1, 0] + 1) /
-                      len(li)*k_clut) for k, y in xdic.iteritems()}
-        except:
-            set_trace()
-    return output
-
-
 def setnode(G, col, dic):
     # set each col's value with dict
-    for k, v in dic.iteritems():
+    for k, v in dic.items():
         if k in G.node:
             G.node[k][col] = v
 
@@ -347,7 +318,7 @@ def translate(vdic, dstlim, vlim=None):
     rngd = float(dstlim[1] - dstlim[0])
     rngv = float(vmax - vmin)
     r = rngd / rngv if rngv > 0 else 0.
-    return {k: (dstlim[0] + r * float(v - vmin)) for k, v in vdic.iteritems()}
+    return {k: (dstlim[0] + r * float(v - vmin)) for k, v in vdic.items()}
 
 
 def exp_boss(G, **kwargs):
@@ -360,17 +331,13 @@ def exp_boss(G, **kwargs):
     fill_boss_info(G)
 
     sizedic = {}
-    for name, dic in G.node.iteritems():
+    for name, dic in G.node.items():
         sizedic[name] = dic['size']
 
     deg = translate(sizedic, [5, 50])
     setnode(G, 'size', deg)
 
-    # ngrp = sum([v.get('group', 0) for v in G.node.values()])
-    # if ngrp == 0:
-    #     output = cluster(nx.betweenness_centrality(G))
-    #     setnode(G, 'group', output)
-    [v.setdefault('group', 0) for k, v in G.node.iteritems()]
+    [v.setdefault('group', 0) for k, v in G.node.items()]
 
     return opt.exp_graph(G, **kwargs)
 
@@ -394,10 +361,7 @@ def exp_company(G, **kwargs):
             degs = {k: 8 for k in G.node}
         setnode(G, 'size', degs)
 
-    # if any([('group' not in dic) for dic in G.node.values()]):
-    #     output = cluster(nx.betweenness_centrality(G1))
-    #     setnode(G, 'group', output)
-    [v.setdefault('group', 0) for k, v in G.node.iteritems()]
+    [v.setdefault('group', 0) for k, v in G.node.items()]
 
     # print(keargs.get('lineunit'))
     # if kwargs.get('lineunit') == 'seatratio':
@@ -412,14 +376,14 @@ def showkv(id, name, info=None):
     boardcol = ('title', 'name', 'repr_inst')
 
     if info is None:
-        s1.append(u'統一編號: %s' % id)
-        s1.append(u'組織名稱: %s' % name)
+        s1.append('統一編號: %s' % id)
+        s1.append('組織名稱: %s' % name)
     else:
-        coldic = [('id', u'統一編號'), ('name', u'公司名稱'),
-                  ('status', u'公司狀況'), ('eqtstate', u'股權狀況')]
+        coldic = [('id', '統一編號'), ('name', '公司名稱'),
+                  ('status', '公司狀況'), ('eqtstate', '股權狀況')]
         for col, colname in filter(lambda col: col in info,
                                    coldic):
-            s1.append(u'%s: %s' % (colname, info[col]))
+            s1.append('%s: %s' % (colname, info[col]))
 
     # Because board maybe None, or DataFrame,
     # but can also be empty DataFrame or not.
@@ -427,11 +391,11 @@ def showkv(id, name, info=None):
     if info['boards']:
         for b in info['boards']:
             s1.append(
-                u' '.join(map(lambda c: b[c], boardcol)))
+                ' '.join(map(lambda c: b[c], boardcol)))
     else:
-        s1.append(u'無董監事資料')
+        s1.append('無董監事資料')
 
-    return u'\n'.join(s1)
+    return '\n'.join(s1)
 
 
 def fill_company_info(G):
@@ -440,10 +404,10 @@ def fill_company_info(G):
 
     assert(len(G.node) > 0)
     ids = G.node.keys()
-    dic = {'id': {'$in': ids}, 'title': {'$ne': u'法人代表'}}
+    dic = {'id': {'$in': ids}, 'title': {'$ne': '法人代表'}}
     infos = {r['id']: r for r in db.cominfo.find(dic)}
     noderm = []
-    for id, dic in G.node.iteritems():
+    for id, dic in G.node.items():
         info = infos.get(id)
         if info:
             name = info['name']
@@ -453,10 +417,10 @@ def fill_company_info(G):
         dic['capital'] = info['capital'] if info and 'capital' in info else 0
         if info and 'status' in info:
             dic['status'] = info['status']
-            if u'核准' not in info['status']:
+            if '核准' not in info['status']:
                 noderm.append(id)
         else:
-            dic['status'] = u''
+            dic['status'] = ''
         dic['name'] = fixname(name)
 
     G.remove_nodes_from(noderm)
@@ -472,32 +436,25 @@ def fill_boss_node(G, targets):
         node['name'] = r['name']
 
 
-def getli(k, x):
-    if 'orgs' not in x:
-        print('Err:', k, x)
-        raise Exception()
-    return x['orgs']
-
-
 def fill_boss_info(G):
     # Fill boss info
 
-    for k, node in G.node.iteritems():
-        node['tooltip'] = u'\n'.join([node['name'], node['titles']])
+    for k, node in G.node.items():
+        node['tooltip'] = '\n'.join([node['name'], node['titles']])
 
-    for k, v in G.node.iteritems():
+    for k, v in G.node.items():
         assert('titles' in v)
     return G
 
 
 # }}}
 # {{{Advance search
-w2 = u'\u202c'
+w2 = '\u202c'
 
 
 ##
 def queryboss(name):
-    name = name.replace(w2, u'')
+    name = name.replace(w2, '')
     ret = list(db.bossnode.find({'name': re.compile(name)}, {'target': 0}))
     ids = set(flatten([r['orgs'] for r in ret]))
     dic = getnamedic(tuple(ids))
@@ -541,7 +498,7 @@ def get_network_boss(name=None, target=None, **kwargs):
     # output: DiGraph
 
     if not target:
-        name = name.replace(w2, u'')
+        name = name.replace(w2, '')
         targets = list(get_boss_node(name))
         cond = {'_id': {'$in': targets}}
     else:
@@ -627,7 +584,7 @@ def getComNet(ids, maxlvl=1, **kwargs):
             G.add_edge(r.pop('src'), r.pop('dst'), r)
 
         ids1 = [key1 for key1, lvl1 in filter(
-                lambda x: lvl == x[1], items.iteritems())]
+                lambda x: lvl == x[1], items.items())]
         return G, ids1, newlvl
 
     G, ids, lvl = reduce(lambda x, y: subgraph(*x),
