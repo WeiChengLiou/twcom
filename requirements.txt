@@ -5,7 +5,7 @@ MarkupSafe==0.23
 PAM==0.4.2
 PyYAML==3.11
 Twisted-Core==13.2.0
-Werkzeug==0.9.6
+Werkzeug==0.15.3
 aniso8601==0.83
 argparse==1.2.1
 chardet==2.0.1
