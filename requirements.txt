@@ -14,7 +14,7 @@ configobj==4.7.2
 decorator==3.4.0
 html5lib==0.999
 iotop==0.6
-ipython==2.3.0
+ipython==7.16.3
 itsdangerous==0.24
 networkx==1.9.1
 numpy==1.9.1
