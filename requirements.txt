@@ -17,7 +17,7 @@ iotop==0.6
 ipython==2.3.0
 itsdangerous==0.24
 networkx==1.9.1
-numpy==1.9.1
+numpy==1.22.0
 pandas==0.15.0
 pyOpenSSL==0.13
 pymongo==2.7.2
