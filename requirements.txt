@@ -26,7 +26,7 @@ python-apt==0.9.3.5
 python-dateutil==2.2
 python-debian==0.1.21-nmu2ubuntu2
 pytz==2014.9
-requests==2.2.1
+requests==2.20.0
 six==1.5.2
 ssh-import-id==3.21
 urllib3==1.7.1
